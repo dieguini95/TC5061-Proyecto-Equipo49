@@ -1,0 +1,32 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "mibici_ml"
+version = "0.0.1"
+description = "Propuesta y base reproducible para predecir demanda, riesgo y patrones de uso de MiBici"
+authors = [
+  { name = "Equipo 49 TC5061" },
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License"
+]
+requires-python = "~=3.12.0"
+
+
+[tool.ruff]
+line-length = 99
+src = ["mibici_ml"]
+include = ["pyproject.toml", "mibici_ml/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Add import sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["mibici_ml"]
+force-sort-within-sections = true
+
