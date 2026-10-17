@@ -189,3 +189,19 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+# ---- Proyecto MiBici: datos, artefactos y modelos (no versionar) ----
+# Datos y artefactos grandes; los datos se regeneran con dataset.py
+*.csv
+*.parquet
+*.feather
+*.db
+mlruns/
+mlartifacts/
+*.pkl
+*.joblib
+*.pt
+*.h5
+*.onnx
+
+# Excepcion: tablas agregadas (sin datos a nivel usuario) usadas por el notebook de EDA
+!reports/tables/*.csv
