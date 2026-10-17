@@ -1,0 +1,144 @@
+{
+  "meses": [
+    "2025_10",
+    "2025_11",
+    "2025_12",
+    "2026_01",
+    "2026_02",
+    "2026_03",
+    "2026_04",
+    "2026_05",
+    "2026_06",
+    "2026_07",
+    "2026_08",
+    "2026_09"
+  ],
+  "viajes_12_meses": 4497877,
+  "viajes_por_mes": {
+    "2025_10": 420064,
+    "2025_11": 380328,
+    "2025_12": 335420,
+    "2026_01": 357180,
+    "2026_02": 333756,
+    "2026_03": 376243,
+    "2026_04": 351851,
+    "2026_05": 315895,
+    "2026_06": 355303,
+    "2026_07": 388257,
+    "2026_08": 393524,
+    "2026_09": 490056
+  },
+  "estaciones_catalogo": 484,
+  "estaciones_con_salidas_12m": 471,
+  "estaciones_sin_viajes_12m": 15,
+  "capacidad_mediana": 15.0,
+  "capacidad_min_max": [
+    0,
+    39
+  ],
+  "estaciones_capacidad_0": 4,
+  "fechas_primer_ultimo_viaje": [
+    "2025-10-01",
+    "2026-09-30"
+  ],
+  "dias_con_viajes": 365,
+  "viajes_por_dia_mediana_12m": 13027.0,
+  "viajes_por_dia_min_max_12m": [
+    2275,
+    21677
+  ],
+  "dia_pico": "2026-09-30",
+  "dia_minimo": "2026-02-22",
+  "encodings": {
+    "datos_abiertos_2025_10.csv": "utf-8",
+    "datos_abiertos_2025_11.csv": "utf-8",
+    "datos_abiertos_2025_12.csv": "utf-8",
+    "datos_abiertos_2026_01.csv": "cp1252",
+    "datos_abiertos_2026_02.csv": "utf-8",
+    "datos_abiertos_2026_03.csv": "utf-8",
+    "datos_abiertos_2026_04.csv": "utf-8",
+    "datos_abiertos_2026_05.csv": "utf-8",
+    "datos_abiertos_2026_06.csv": "utf-8",
+    "datos_abiertos_2026_07.csv": "utf-8",
+    "datos_abiertos_2026_08.csv": "utf-8",
+    "datos_abiertos_2026_09.csv": "utf-8"
+  },
+  "cabeceras_con_mojibake": [],
+  "cabeceras_no_coinciden_con_esquema": [],
+  "sep_2026": {
+    "mes": "2026_09",
+    "viajes": 490056,
+    "encoding": "utf-8",
+    "cabecera_ok": true,
+    "viaje_id_duplicados": 758,
+    "genero_M": 352032,
+    "genero_F": 134729,
+    "genero_NULL_o_vacio": 3295,
+    "anio_nacimiento_vacio_o_NULL": 9,
+    "anio_nacimiento_con_decimal": 0,
+    "anio_nacimiento_menor_1930": 8,
+    "anio_nacimiento_mayor_2014": 0,
+    "fechas_no_parseables": 0,
+    "duracion_menor_igual_0_min": 171,
+    "duracion_menor_1_min": 18966,
+    "duracion_mayor_180_min": 37,
+    "origen_igual_destino": 33812,
+    "termina_mes_siguiente": 17,
+    "estaciones_origen": 468,
+    "estaciones_destino": 468,
+    "estaciones_fuera_catalogo_2026_09": 0,
+    "inicio_min": "2026-09-01 00:00:59",
+    "inicio_max": "2026-09-30 23:59:48",
+    "mojibake_en_texto": 0,
+    "bytes": 42566896,
+    "sha256": "00b5cf64cc31a502d01044d905f6e033f9bc1db962e771119742fd25c6cb58b3"
+  },
+  "factibilidad_p2_12m": {
+    "estacion_dia_activos": 142406,
+    "pct_factibles": 90.93,
+    "pct_no_factibles": 9.07,
+    "pct_W_mayor_C": 9.07,
+    "mediana_W_sobre_C": 0.455
+  },
+  "factibilidad_p2_sep_2026": {
+    "estacion_dia_activos": 14001,
+    "pct_factibles": 92.33,
+    "pct_no_factibles": 7.67,
+    "pct_W_mayor_C": 7.67,
+    "mediana_W_sobre_C": 0.421
+  },
+  "duracion_mediana_min_aprox_12m": 9.0,
+  "viajes_entre_02_y_04_h": 20,
+  "pico_horas": [
+    18,
+    8
+  ],
+  "dia_semana_mas_viajes": "mie",
+  "dia_semana_menos_viajes": "dom",
+  "fact_por_capacidad": [
+    {
+      "capacidad": "11-20",
+      "estacion_dia": 124763,
+      "pct_factibles": 91.11
+    },
+    {
+      "capacidad": "21-30",
+      "estacion_dia": 14731,
+      "pct_factibles": 91.05
+    },
+    {
+      "capacidad": "31-39",
+      "estacion_dia": 2912,
+      "pct_factibles": 82.35
+    }
+  ],
+  "p1_conteos_estacion_hora": {
+    "estaciones_activas_malla": 471,
+    "horas_periodo": 8760,
+    "estacion_hora_con_viajes": 1555968,
+    "pct_estacion_hora_cero": 62.29,
+    "media_salidas_estacion_hora": 1.0901,
+    "varianza_salidas_estacion_hora": 5.4824,
+    "indice_dispersion_var_sobre_media": 5.029
+  }
+}
