@@ -80,6 +80,45 @@ marcados como **PROVISIONAL** se ajustarán con los resultados de MLflow.
 - Panel estación-hora y features sin fuga del futuro (rezagos de 24 h o más en P1).
 - Baselines, modelos candidatos y métricas de prueba por problema.
 
+### Baseline P3 exploratorio
+
+Este baseline segmenta estaciones por **volumen agregado de salidas/llegadas y capacidad**. No estima
+patrones horarios por estación y no sustituye el pipeline reproducible desde datos crudos.
+
+- **Fuente:** `reports/tables/estaciones_resumen.csv`, agregado de los 12 meses completos.
+- **Features:** `log1p(salidas_12m)`, `log1p(llegadas_12m)` y `capacidad_modelo`, escaladas con
+  `StandardScaler` antes de `KMeans`. `est`, `nombre`, `lat`, `lon` y `capacidad_imputada` no entran
+  al modelo; coordenadas solo sirven para el mapa.
+- **Capacidad cero:** cuatro estaciones tienen `capacidad == 0` en la tabla agregada. Para este
+  baseline, cero es un valor no utilizable para modelado, no una capacidad física real confirmada
+  por MiBici. Se conserva `capacidad` original y se calcula `capacidad_modelo` sustituyendo los
+  ceros por la mediana de capacidades estrictamente positivas del archivo leído. La columna
+  `capacidad_imputada` identifica esas filas. Es una decisión metodológica provisional; la ingesta
+  reproducible deberá investigar la causa de esos ceros.
+- **Evaluación:** comparar `k=3..8` con inertia, silhouette, Calinski-Harabasz,
+  Davies-Bouldin y tamaños de cluster. La herramienta no selecciona `final_k`.
+
+Evaluar candidatos sin MLflow:
+
+```bash
+python -m mibici_ml.modeling.cluster evaluate --input-path reports/tables/estaciones_resumen.csv --output-dir /tmp/mibici-p3-evaluation --k-min 3 --k-max 8 --random-seed 42
+```
+
+Después de revisar la tabla de métricas y decidir `FINAL_K`, ejecutar el baseline y registrar MLflow:
+
+```bash
+MLFLOW_ALLOW_FILE_STORE=true python -m mibici_ml.modeling.cluster run --input-path reports/tables/estaciones_resumen.csv --output-dir /tmp/mibici-p3-baseline-artifacts --k-min 3 --k-max 8 --final-k FINAL_K --random-seed 42 --with-mlflow
+```
+
+`MLFLOW_ALLOW_FILE_STORE=true` habilita el backend local `file://` configurado en este proyecto con
+MLflow 3.17.1; solo aplica al proceso de ese comando. La corrida usa el experimento `mibici-equipo49`.
+No ejecutes el segundo comando hasta que el equipo acuerde `FINAL_K`.
+
+El baseline produce `p3_metricas_por_k.csv`, `p3_comparacion_k.png`, `p3_asignaciones_cluster.csv`,
+`p3_perfiles_cluster.csv`, `p3_perfiles_cluster.png`, `p3_mapa_clusters.png` y
+`p3_calidad_datos.csv`. El alcance es exploratorio: no hay perfiles horarios por estación, holdout
+temporal ni validación de producción. Deberá integrarse posteriormente con la ingesta reproducible.
+
 ## Experimentos (MLflow)
 
 **Pendiente** (paso 6). Configuración base en `mibici_ml/config.py`:
