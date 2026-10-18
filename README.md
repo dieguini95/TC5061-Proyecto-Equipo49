@@ -119,6 +119,45 @@ El baseline produce `p3_metricas_por_k.csv`, `p3_comparacion_k.png`, `p3_asignac
 `p3_calidad_datos.csv`. El alcance es exploratorio: no hay perfiles horarios por estación, holdout
 temporal ni validación de producción. Deberá integrarse posteriormente con la ingesta reproducible.
 
+### Modelo P2 de riesgo de estación
+
+Predice si una estación quedará **vacía o llena** en las siguientes 2 horas (`P2_HORIZON_HOURS`).
+Se construye desde los viajes crudos de los 12 meses, sin inventario real por estación.
+
+- **Etiqueta:** el inventario estimado `s0 + F(t)` toca 0 o `C` dentro de las siguientes `H` horas del
+  mismo día. `s0 = (L + U) / 2` es el punto medio del rango factible y solo sirve para construir la
+  etiqueta. Un estación-día infactible (`L > U`, con solo viajes no hay inventario consistente) se
+  excluye de entrenamiento, validación y prueba.
+- **Features:** solo información hasta `t`: hora, día de la semana, fin de semana, capacidad, flujo
+  acumulado y su proporción de la capacidad, llegadas y salidas de 1 y 2 horas, y salidas de la misma
+  hora del día anterior. Ninguna mira al futuro.
+- **Partición temporal:** entrenamiento oct-25 a jun-26, validación jul-ago-26, prueba sep-26 (se abre
+  una sola vez, con el modelo elegido en validación). Sin partición aleatoria.
+- **Modelos:** mayoritaria, persistencia (`r(s, t-H)`), regresión logística balanceada y
+  `HistGradientBoostingClassifier`. Métrica principal: PR-AUC; además precision@k, recall con precisión
+  ≥ 0.5, F1 con umbral de validación, ROC-AUC y Brier.
+
+Comandos (desde la raíz del proyecto, con los CSV en `01_insumos/datos/`):
+
+```bash
+# 1. Construye el panel estación-hora (cache en data/interim/)
+python -m mibici_ml.modeling.risk build-panel --raw-dir ../../01_insumos/datos --catalog-path ../../01_insumos/datos/nomenclatura_2026_09.csv
+
+# 2. Compara los 4 modelos solo en validación (no abre la prueba)
+python -m mibici_ml.modeling.risk evaluate --raw-dir ../../01_insumos/datos --catalog-path ../../01_insumos/datos/nomenclatura_2026_09.csv --output-dir /tmp/mibici-p2-evaluation
+
+# 3. Registra 4 runs de validación y 1 run final con prueba del modelo elegido
+MLFLOW_ALLOW_FILE_STORE=true python -m mibici_ml.modeling.risk run --raw-dir ../../01_insumos/datos --catalog-path ../../01_insumos/datos/nomenclatura_2026_09.csv --output-dir /tmp/mibici-p2-artifacts --final-model hist_gb --with-mlflow
+```
+
+Limitaciones: el inventario es una aproximación desde viajes (no hay rebalanceo ni bicicletas no
+registradas); la clase positiva es rara (~0.45 % de las filas del panel), lo que limita la precisión
+absoluta; y 4 estaciones con capacidad 0 se excluyen del modelado.
+
+Cifras del panel de 12 meses (`data/interim/p2_calidad_datos.csv`): el porcentaje de estación-día no
+factibles es 7.35 % sobre la malla completa (estación × día, 175,680). El EDA reporta 9.07 % sobre
+solo los estación-día con actividad (142,406); el denominador distinto explica la diferencia.
+
 ## Experimentos (MLflow)
 
 **Pendiente** (paso 6). Configuración base en `mibici_ml/config.py`:
