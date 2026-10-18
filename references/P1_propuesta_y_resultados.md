@@ -132,13 +132,13 @@ El manifiesto fija los hashes de los CSV y Parquet. Antes de evaluar, el módulo
 
 | Run de MLflow | Identificador |
 |---|---|
-| `P1-estacional-168h` | `73a1012f12e64d748ab5a6cac260d626` |
-| `P1-media-4semanas` | `8bf2392b699e4604b9be6807f1f23f51` |
+| `P1-estacional-168h` | `afb77ec9c5904efd9e9c059376d7b90b` |
+| `P1-media-4semanas` | `15d5969c45f54aadb44b80b8f0aa8563` |
 
 Ambos pertenecen al experimento `mibici-equipo49`, identificador local `404903470010940206`. Los IDs también se guardan en `reports/tables/p1_runs.json`.
 <!-- P1_RESULTS_END -->
 
-Cada run registra fechas, `data_version`, semilla, rezagos y protocolo. Las métricas distinguen `val_*` de `test_*`. Las etiquetas identifican equipo, pregunta y el commit base `fee97032554eec71b9b4783373390c1f5517cf0c`. Como estos cambios aún no están confirmados en Git, se registra `git_dirty=true` y `source_version=e73f2a62f7092f01c0c25ac2c3619e2a4fad5ab1ee79b6965f059d6ed6dcc78f`, junto con `reproducibility/code_snapshot.zip` y `code_provenance.json`. El commit base por sí solo no representa los cambios locales; el snapshot conserva los módulos y dependencias realmente ejecutados.
+Cada run registra fechas, `data_version`, semilla, rezagos y protocolo. Las métricas distinguen `val_*` de `test_*`. Las etiquetas identifican equipo, pregunta y el commit de implementación `52af95c13416705906f0630f058a4c78645a2fbe`, con `git_dirty=false`. La versión de fuentes es `25f9a8265b0c28941d6e83bb92c45a5c2a15ccf69c0cf21f4fc9e01c12da5c7c`. El artefacto `reproducibility/code_snapshot.zip` conserva módulos, dependencias, README y licencia; `code_provenance.json` fija hashes del código y del contexto documental por separado. Las capturas corresponden a estos runs finales; las corridas preliminares siguen conservadas como historial local.
 
 Artefactos principales:
 
@@ -166,7 +166,7 @@ python -m mibici_ml.dataset --source-dir "C:\ruta\a\los\CSV"
 python -m mibici_ml.modeling.demand
 ```
 
-Los dos comandos de ingesta son alternativas. El README documenta la instalación fijada y el arranque de la interfaz local de MLflow. Las fechas, rutas y semillas se centralizan en `mibici_ml/config.py`; no se necesita copiar transformaciones desde el notebook ni mover archivos manualmente para una ejecución con descarga.
+Los dos comandos de ingesta son alternativas. El README documenta la instalación fijada y el arranque de la interfaz local de MLflow. El contrato diario valida 24 horas, emisión a medianoche y rezagos de al menos 24 horas antes de leer datos o registrar MLflow. Las fechas, rutas y semillas se centralizan en `mibici_ml/config.py`; no se necesita copiar transformaciones desde el notebook ni mover archivos manualmente para una ejecución con descarga.
 
 ## 8. Limitaciones y siguiente iteración
 
@@ -176,7 +176,7 @@ Los dos comandos de ingesta son alternativas. El README documenta la instalació
 - No se incluyen clima, festividades, eventos, stock ni rebalanceos. Su ausencia limita la respuesta a cambios de demanda.
 - La cohorte común con 28 días de historia no resuelve estaciones nuevas. Para producción falta definir una estrategia de arranque y medirla por separado.
 - Es una evaluación retrospectiva con archivos mensuales. Operación diaria requeriría una fuente con actualización diaria y verificación de cuándo está disponible cada dato.
-- Faltan integrar los resultados de P2/P3, la revisión del equipo y la evidencia individual de colaboración en el entregable conjunto. No se ha hecho push de este trabajo.
+- Faltan integrar los resultados de P2/P3, la revisión del equipo y la evidencia individual de colaboración en el entregable conjunto. La publicación de P1 se realiza mediante Pull Request desde la rama Saul, con revisión del equipo antes de fusionar.
 
 ## Referencias
 

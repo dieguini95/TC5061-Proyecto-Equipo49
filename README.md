@@ -14,7 +14,8 @@ Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
 ## Problema y propuesta
 
-Tres problemas sobre los viajes de MiBici, todos con una partición temporal (sin barajar):
+Tres problemas sobre los viajes de MiBici. P1 usa una partición temporal (sin barajar);
+el alcance exploratorio de P3 se describe más adelante:
 
 | Problema | Tipo | Qué predice o describe |
 |---|---|---|
@@ -119,6 +120,7 @@ Una estación se considera conocida desde el día posterior a su primera salida;
 Una fuente mensual ausente produce error. Se comparan `seasonal_168h` y `mean_4weeks` sobre las mismas
 filas con cuatro semanas disponibles. La elección usa WAPE de julio-agosto; septiembre evalúa reglas
 ya fijadas. El backtest diario usa días anteriores ya observados, nunca salidas del día pronosticado.
+El módulo rechaza horizontes distintos de 24 h, emisiones distintas de las 00:00 y rezagos menores de 24 h.
 
 MAE mide viajes de error por estación-hora; RMSE penaliza errores grandes; WAPE divide error absoluto
 total entre viajes observados; el sesgo identifica sobre/subestimación. WAPE se registra como razón,
@@ -182,10 +184,10 @@ P1 ejecutado; integración conjunta pendiente (paso 6). Configuración base en `
 P1 crea `P1-estacional-168h` y `P1-media-4semanas`; IDs en `reports/tables/p1_runs.json`.
 Se registra `data_version`, semilla, horizonte y versión del código. El snapshot
 `reproducibility/code_snapshot.zip` y `code_provenance.json` conservan módulos y dependencias ejecutados.
-El ZIP complementa el repositorio: para restaurarlo, primero clonar y hacer checkout del commit indicado,
-luego extraer el snapshot sobre ese checkout e instalar el lock. No contiene el repositorio completo.
-Las primeras corridas locales declaran commit base y `git_dirty=true`; no se atribuyen a ese commit
-los cambios pendientes. La evidencia final debe corresponder al commit que incluya P1.
+El ZIP incluye también README y licencia, cuyos hashes de contexto se registran por separado de la versión
+del código. Para reproducir, clonar el repositorio, hacer checkout del commit registrado e instalar el lock.
+Los runs finales corresponden al commit `52af95c13416705906f0630f058a4c78645a2fbe`, con `git_dirty=false`.
+Las primeras corridas locales se conservan en MLflow; las capturas adjuntas muestran los runs finales.
 
 Para abrir MLflow desde otra terminal PowerShell, en la raíz del repositorio:
 
