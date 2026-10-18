@@ -71,6 +71,28 @@ P1_PURGE_GAP_HOURS = 24  # hueco entre pliegues de validacion cruzada
 P1_BASELINE_SEASONAL_LAG_HOURS = 168  # estacional-ingenuo: misma hora de la semana pasada
 P1_BASELINE_MEAN_WEEKS = 4  # media de las ultimas 4 semanas, mismo dia y hora
 
+# P1: artefactos y contrato de la entrega local. Los datos completos siguen fuera de Git.
+REFERENCES_DIR = PROJ_ROOT / "references"
+DATA_MANIFEST_PATH = REFERENCES_DIR / "data_manifest.json"
+TRIPS_PROCESSED_DIR = PROCESSED_DATA_DIR / "trips"
+P1_PANEL_PATH = PROCESSED_DATA_DIR / "p1_station_hour.parquet"
+P1_PREDICTIONS_PATH = PROCESSED_DATA_DIR / "p1_predictions.parquet"
+P1_METRICS_PATH = TABLES_DIR / "p1_metrics.csv"
+P1_QUALITY_PATH = TABLES_DIR / "p1_quality.json"
+P1_RUNS_PATH = TABLES_DIR / "p1_runs.json"
+P1_STATION_METRICS_PATH = TABLES_DIR / "p1_station_metrics.csv"
+P1_FIGURES = {
+    "comparison": FIGURES_DIR / "P1_error_comparison.png",
+    "daily": FIGURES_DIR / "P1_daily_totals.png",
+    "station": FIGURES_DIR / "P1_station_example.png",
+}
+P1_MODEL_NAMES = ("seasonal_168h", "mean_4weeks")
+P1_FORECAST_HORIZON_HOURS = 24
+P1_FORECAST_ORIGIN_HOUR = 0
+P1_TIMEZONE = "America/Mexico_City"
+P1_PRIMARY_METRIC = "wape"
+P1_SOURCE_VERSION = "p1-station-hour-v1"
+
 # ---------------------------------------------------------------------------
 # P2: clasificacion de riesgo (estacion vacia o llena en las siguientes H horas)
 # ---------------------------------------------------------------------------

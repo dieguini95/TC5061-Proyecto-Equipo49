@@ -205,3 +205,10 @@ mlartifacts/
 
 # Excepcion: tablas agregadas (sin datos a nivel usuario) usadas por el notebook de EDA
 !reports/tables/*.csv
+
+# Archivos locales de ejecucion P1
+/work/
+.env.*
+*.db-shm
+*.db-wal
+*.skops

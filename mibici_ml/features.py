@@ -1,28 +1,257 @@
+"""Variables causales para P1: salidas por estación-hora, emitidas a medianoche.
+
+El panel conserva horas sin demanda, pero no inventa ceros antes de conocer una
+estación. La primera salida observada es una aproximación a su disponibilidad,
+no evidencia de su fecha real de apertura ni de cierres posteriores.
+"""
+
 from pathlib import Path
 
 from loguru import logger
-from tqdm import tqdm
+import numpy as np
+import pandas as pd
 import typer
 
-from mibici_ml.config import PROCESSED_DATA_DIR
+from mibici_ml import config
+from mibici_ml.config import (
+    END_MONTH,
+    P1_PANEL_PATH,
+    START_MONTH,
+    TRIPS_PROCESSED_DIR,
+)
 
 app = typer.Typer()
 
 
+def validate_p1_forecast_contract() -> None:
+    """Rechaza configuraciones que el pronóstico diario todavía no soporta.
+
+    La emisión es a medianoche para las 24 horas del día. Permitir un horizonte
+    menor sin cambiar ese panel admitiría rezagos del mismo día pronosticado.
+    Se valida antes de leer datos y antes de registrar el protocolo en MLflow.
+    """
+    if config.P1_FORECAST_HORIZON_HOURS != 24 or config.P1_FORECAST_ORIGIN_HOUR != 0:
+        raise ValueError("P1 soporta únicamente horizonte de 24 h y emisión a medianoche (0 h).")
+    if not isinstance(config.P1_BASELINE_MEAN_WEEKS, int) or config.P1_BASELINE_MEAN_WEEKS < 1:
+        raise ValueError("El número de semanas de P1 debe ser un entero positivo.")
+    weekly_lag = config.P1_BASELINE_SEASONAL_LAG_HOURS
+    lags = [*config.P1_LAG_HOURS, weekly_lag]
+    if any(not isinstance(lag, int) or lag < 24 for lag in lags):
+        raise ValueError(
+            "Una previsión diaria a medianoche requiere rezagos enteros de al menos 24 h."
+        )
+
+
+def _months(start_month: str, end_month: str) -> pd.PeriodIndex:
+    """Valida la ventana inclusiva de archivos mensuales."""
+    start = pd.Period(start_month, freq="M")
+    end = pd.Period(end_month, freq="M")
+    if end < start:
+        raise ValueError("end_month debe ser igual o posterior a start_month")
+    return pd.period_range(start, end, freq="M")
+
+
+def aggregate_departures(
+    trips_dir: Path,
+    start_month: str = START_MONTH,
+    end_month: str = END_MONTH,
+) -> pd.DataFrame:
+    """Cuenta salidas por estación y hora leyendo un Parquet mensual cada vez.
+
+    Solo carga ``origin_id`` y ``start_time`` para limitar la memoria utilizada
+    por millones de viajes. Cada archivo debe llamarse ``AAAA_MM.parquet`` y
+    contener viajes del mes indicado, ya limpios por ``dataset.py``. Falla si
+    falta un mes: la ausencia de archivos nunca se interpreta como demanda cero.
+    Esta comprobación no demuestra cobertura operativa dentro de cada archivo.
+    """
+    months = _months(start_month, end_month)
+    paths = [Path(trips_dir) / f"{month.year:04d}_{month.month:02d}.parquet" for month in months]
+    missing = [str(path) for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError("Faltan meses de viajes: " + ", ".join(missing))
+
+    monthly_counts = []
+    for month, path in zip(months, paths, strict=True):
+        trips = pd.read_parquet(path, columns=["origin_id", "start_time"])
+        if trips.empty:
+            raise ValueError(f"El archivo mensual no contiene viajes: {path}")
+        timestamps = pd.to_datetime(trips["start_time"], errors="raise")
+        if timestamps.dt.tz is not None:
+            raise ValueError("start_time debe ser hora local sin zona horaria")
+        if timestamps.isna().any() or not timestamps.dt.to_period("M").eq(month).all():
+            raise ValueError(f"Fechas ausentes o fuera del mes {month}: {path}")
+        station_ids = pd.to_numeric(trips["origin_id"], errors="raise")
+        if (
+            station_ids.isna().any()
+            or not np.isfinite(station_ids).all()
+            or not station_ids.mod(1).eq(0).all()
+            or not station_ids.gt(0).all()
+        ):
+            raise ValueError(f"Identificadores de estación inválidos: {path}")
+        departures = pd.DataFrame(
+            {
+                "station_id": station_ids.astype("int32"),
+                "timestamp": timestamps.dt.floor("h"),
+            }
+        )
+        counts = departures.groupby(["station_id", "timestamp"], sort=False).size()
+        monthly_counts.append(counts.rename("departures").reset_index())
+        logger.info("P1: {} viajes agregados de {}", len(trips), month)
+
+    result = pd.concat(monthly_counts, ignore_index=True)
+    result["departures"] = result["departures"].astype("int32")
+    return result.sort_values(["station_id", "timestamp"], ignore_index=True)
+
+
+def complete_station_hour_panel(
+    counts: pd.DataFrame,
+    start_month: str = START_MONTH,
+    end_month: str = END_MONTH,
+) -> pd.DataFrame:
+    """Completa un índice horario continuo y conserva la incertidumbre inicial.
+
+    ``counts`` contiene salidas positivas por estación-hora. La estación pasa a
+    ser elegible a la medianoche siguiente a su primera salida observada. Todo
+    su primer día (posiblemente incompleto) y los anteriores quedan sin etiqueta;
+    las horas posteriores sin viajes son ceros. ``eligible`` permite excluir del
+    universo de predicción las estaciones todavía desconocidas en cada emisión.
+    Los identificadores futuros solo existen en filas de almacenamiento no
+    elegibles; no deben usarse para entrenar ni para definir categorías futuras.
+    """
+    validate_p1_forecast_contract()
+    months = _months(start_month, end_month)
+    required = {"station_id", "timestamp", "departures"}
+    if not required.issubset(counts.columns):
+        raise ValueError(f"Faltan columnas de conteos: {sorted(required - set(counts.columns))}")
+    if counts.empty:
+        raise ValueError("No hay salidas con las que construir el panel")
+    counts = counts.loc[:, ["station_id", "timestamp", "departures"]].copy()
+    counts["timestamp"] = pd.to_datetime(counts["timestamp"], errors="raise")
+    if counts["timestamp"].dt.tz is not None:
+        raise ValueError("timestamp debe ser hora local sin zona horaria")
+    if counts[["station_id", "timestamp", "departures"]].isna().any().any():
+        raise ValueError("Los conteos de entrada no pueden contener valores ausentes")
+    if not counts["timestamp"].eq(counts["timestamp"].dt.floor("h")).all():
+        raise ValueError("Los conteos deben estar agregados a horas exactas")
+    if counts.duplicated(["station_id", "timestamp"]).any():
+        raise ValueError("Hay estaciones-hora duplicadas en los conteos")
+    if not (counts["departures"].gt(0) & counts["departures"].mod(1).eq(0)).all():
+        raise ValueError("Los conteos dispersos deben ser enteros positivos")
+
+    start = months[0].start_time
+    end_exclusive = (months[-1] + 1).start_time
+    if not counts["timestamp"].between(start, end_exclusive, inclusive="left").all():
+        raise ValueError("Hay conteos fuera de la ventana solicitada")
+    hours = pd.date_range(start, end_exclusive, freq="h", inclusive="left")
+    first_seen = counts.groupby("station_id")["timestamp"].min().sort_index()
+    index = pd.MultiIndex.from_product(
+        [first_seen.index, hours], names=["station_id", "timestamp"]
+    )
+    values = counts.set_index(["station_id", "timestamp"])["departures"]
+    panel = values.reindex(index).fillna(0).astype("Int32").reset_index()
+    panel["station_id"] = panel["station_id"].astype("int32")
+    panel["first_seen"] = np.repeat(first_seen.to_numpy(), len(hours))
+    panel["forecast_origin"] = panel["timestamp"].dt.normalize()
+    panel["eligible"] = panel["first_seen"].lt(panel["forecast_origin"])
+    panel.loc[~panel["eligible"], "departures"] = pd.NA
+    return panel
+
+
+def add_p1_features(panel: pd.DataFrame) -> pd.DataFrame:
+    """Añade rezagos y calendarios disponibles al emitir 24 horas a las 00:00.
+
+    Verifica el índice horario antes de desplazar filas: cada rezago representa
+    horas reales, incluso en días sin viajes. Los rezagos mínimos de 24 horas
+    impiden utilizar salidas del día que se pronostica. Las referencias son la
+    misma hora de la semana anterior y el promedio de las cuatro semanas previas.
+    ``mean_4weeks_coverage`` explicita cuántas semanas existen; ``mean_4weeks``
+    queda ausente hasta tener las cuatro, sin sustituciones silenciosas.
+    ``evaluation_eligible`` identifica el mismo conjunto con cuatro semanas de
+    historia para comparar todos los modelos. Las estaciones nuevas se reportan
+    como cobertura excluida y requieren una estrategia futura de arranque.
+    """
+    validate_p1_forecast_contract()
+    required = {"station_id", "timestamp", "departures", "first_seen"}
+    if not required.issubset(panel.columns):
+        raise ValueError(f"Faltan columnas del panel: {sorted(required - set(panel.columns))}")
+    if panel.empty:
+        raise ValueError("El panel está vacío")
+    result = panel.sort_values(["station_id", "timestamp"], ignore_index=True).copy()
+    result["timestamp"] = pd.to_datetime(result["timestamp"], errors="raise")
+    if result["timestamp"].dt.tz is not None:
+        raise ValueError("timestamp debe ser hora local sin zona horaria")
+    if (
+        result["timestamp"].isna().any()
+        or not result["timestamp"].eq(result["timestamp"].dt.floor("h")).all()
+    ):
+        raise ValueError("El panel debe contener horas exactas sin fechas ausentes")
+    differences = result.groupby("station_id", sort=False)["timestamp"].diff()
+    if not differences.dropna().eq(pd.Timedelta(hours=1)).all():
+        raise ValueError("El índice horario debe ser continuo, sin huecos ni duplicados")
+
+    result["forecast_origin"] = result["timestamp"].dt.normalize()
+    result["eligible"] = result["first_seen"].lt(result["forecast_origin"])
+    result.loc[~result["eligible"], "departures"] = pd.NA
+    result["hour"] = result["timestamp"].dt.hour.astype("uint8")
+    result["day_of_week"] = result["timestamp"].dt.dayofweek.astype("uint8")
+    result["is_weekend"] = result["day_of_week"].ge(5)
+
+    week_lags = [
+        config.P1_BASELINE_SEASONAL_LAG_HOURS * week
+        for week in range(1, config.P1_BASELINE_MEAN_WEEKS + 1)
+    ]
+    all_lags = sorted(set(config.P1_LAG_HOURS) | set(week_lags))
+    grouped = result.groupby("station_id", sort=False)["departures"]
+    shifted = {lag: grouped.shift(lag).astype("float32") for lag in all_lags}
+    for lag in config.P1_LAG_HOURS:
+        result[f"lag_{lag}"] = shifted[lag]
+    result["seasonal_168h"] = shifted[config.P1_BASELINE_SEASONAL_LAG_HOURS]
+    weeks = pd.concat([shifted[lag] for lag in week_lags], axis=1)
+    result["mean_4weeks_coverage"] = weeks.notna().sum(axis=1).astype("uint8")
+    full_history = result["mean_4weeks_coverage"].eq(config.P1_BASELINE_MEAN_WEEKS)
+    result["mean_4weeks"] = weeks.mean(axis=1).where(full_history).astype("float32")
+    result["evaluation_eligible"] = (
+        result["eligible"]
+        & result["departures"].notna()
+        & full_history
+        & result[[f"lag_{lag}" for lag in config.P1_LAG_HOURS]].notna().all(axis=1)
+    )
+    return result
+
+
+def build_station_hour_panel(
+    trips_dir: Path = TRIPS_PROCESSED_DIR,
+    start_month: str = START_MONTH,
+    end_month: str = END_MONTH,
+) -> pd.DataFrame:
+    """Construye P1 desde meses completos, conservando trazabilidad temporal.
+
+    El resultado incluye etiquetas, calendario, rezagos, dos baselines y máscaras
+    de cobertura. No utiliza datos personales ni características de inventario.
+    """
+    validate_p1_forecast_contract()
+    counts = aggregate_departures(trips_dir, start_month, end_month)
+    panel = complete_station_hour_panel(counts, start_month, end_month)
+    return add_p1_features(panel)
+
+
 @app.command()
 def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "features.csv",
-    # -----------------------------------------
+    trips_dir: Path = TRIPS_PROCESSED_DIR,
+    output_path: Path = P1_PANEL_PATH,
+    start_month: str = START_MONTH,
+    end_month: str = END_MONTH,
 ):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Generating features from dataset...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Features generation complete.")
-    # -----------------------------------------
+    """Genera el panel reproducible de P1 desde la terminal."""
+    panel = build_station_hour_panel(trips_dir, start_month, end_month)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    panel.to_parquet(output_path, index=False)
+    logger.success(
+        "Panel P1 guardado: {} filas, {} elegibles para evaluación, {}",
+        len(panel),
+        int(panel["evaluation_eligible"].sum()),
+        output_path,
+    )
 
 
 if __name__ == "__main__":
