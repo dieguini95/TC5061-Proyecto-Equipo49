@@ -3,7 +3,7 @@
 Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**, Etapa 1: propuesta y base reproducible.
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
-> **Estado (18 de octubre de 2026):** las tres preguntas están integradas sobre la misma ingesta
+> **Estado (18 de octubre de 2026):** `main` contiene P1, P2 y P3 integradas sobre la misma ingesta
 > (`dataset.py`) y el mismo manifiesto (`data_version`). P1 y P2 tienen runs en MLflow; P3 tiene su baseline
 > exploratorio. Ver la tabla de [estado de la actividad](#estado-de-la-actividad).
 
@@ -283,9 +283,9 @@ Pull requests del proyecto:
 | [#1](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/1) | `feat/p3-clustering-mlflow` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
 | [#2](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/2) | `feat/p2-risk-mlflow` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
 | [#3](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/3) | `Saul` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
-| Cierre | `feat/p2-integracion-cierre` | dieguini95 (Diego Sánchez) | pendiente |
+| [#4](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/4) | `feat/p2-integracion-cierre` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
 
-Saúl Salgado no ha revisado aún un PR de otro integrante; ese es el único hueco de la regla de revisión.
+Los cuatro PR están fusionados en `main`. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
 
 Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
 Diego Sánchez (P2 y cierre del repositorio).
@@ -322,9 +322,9 @@ Evidencia P1:
 | 4 | Modelos y métricas | Hecho: baselines y candidatos por pregunta |
 | 5 | Arquitectura | Hecho (`references/arquitectura_mibici_equipo49.png`) |
 | 6 | Experimentos en MLflow | Hecho: runs de P1, P2 y P3 en `mibici-equipo49` |
-| 7 | Capturas de MLflow | Hecho para P2 y P3; P1 en `reports/figures/P1_mlflow_*.png` |
+| 7 | Capturas de MLflow | Hecho para P1, P2 y P3 (las de P1 también en `reports/figures/P1_mlflow_*.png`) |
 | 8 | Estructura del repositorio (ccds) | Hecho |
-| 9 | Flujo Git y PRs | Hecho en la tabla de PRs; revisión de Saúl pendiente |
+| 9 | Flujo Git y PRs | Hecho: PR #1 a #4 fusionados, cada uno con revisión de otro integrante |
 | 10 | Ingesta (`dataset.py`) | Hecho: 12 meses, catálogo, Parquet y manifiesto |
 | 11 | Features (`features.py`) | Hecho: P1 y P2 documentados y probados |
 | 12 | README final | Hecho en este PR |
