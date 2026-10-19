@@ -1,0 +1,57 @@
+[
+  {
+    "run_name": "P2-hist_gb-final",
+    "run_id": "0281eb7986974d7e8536dbacdfda2a9f",
+    "status": "FINISHED",
+    "run_type": "final_test",
+    "model": "hist_gb",
+    "git_commit": "b8651e14920789b72e648ce538e4c5953f0a1e0e",
+    "git_dirty": "false",
+    "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+    "temporal_holdout": "true"
+  },
+  {
+    "run_name": "P2-hist_gb-validacion",
+    "run_id": "1f95f7d4e95b4fb099ac909823322bdf",
+    "status": "FINISHED",
+    "run_type": "model_selection_validation",
+    "model": "hist_gb",
+    "git_commit": "b8651e14920789b72e648ce538e4c5953f0a1e0e",
+    "git_dirty": "false",
+    "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+    "temporal_holdout": "false"
+  },
+  {
+    "run_name": "P2-logistica-validacion",
+    "run_id": "979675f8a6a04a97a95104aa4704b0b9",
+    "status": "FINISHED",
+    "run_type": "model_selection_validation",
+    "model": "logistica",
+    "git_commit": "b8651e14920789b72e648ce538e4c5953f0a1e0e",
+    "git_dirty": "false",
+    "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+    "temporal_holdout": "false"
+  },
+  {
+    "run_name": "P2-persistencia-validacion",
+    "run_id": "7c97af9a002045319d7c1203b3820632",
+    "status": "FINISHED",
+    "run_type": "model_selection_validation",
+    "model": "persistencia",
+    "git_commit": "b8651e14920789b72e648ce538e4c5953f0a1e0e",
+    "git_dirty": "false",
+    "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+    "temporal_holdout": "false"
+  },
+  {
+    "run_name": "P2-mayoritaria-validacion",
+    "run_id": "647865cdbcc64418bd0518ed56eede88",
+    "status": "FINISHED",
+    "run_type": "model_selection_validation",
+    "model": "mayoritaria",
+    "git_commit": "b8651e14920789b72e648ce538e4c5953f0a1e0e",
+    "git_dirty": "false",
+    "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+    "temporal_holdout": "false"
+  }
+]
