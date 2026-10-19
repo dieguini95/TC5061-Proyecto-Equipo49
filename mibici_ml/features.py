@@ -383,8 +383,12 @@ def build_p2_features(panel: pd.DataFrame) -> pd.DataFrame:
     """
     required = {"est", "ts", "day", "salidas", "llegadas", "capacidad", "flujo_acumulado"}
     if not required.issubset(panel.columns):
-        raise ValueError(f"Faltan columnas del panel de P2: {sorted(required - set(panel.columns))}")
-    frame = panel[["est", "ts", "day", "salidas", "llegadas", "capacidad", "flujo_acumulado"]].copy()
+        raise ValueError(
+            f"Faltan columnas del panel de P2: {sorted(required - set(panel.columns))}"
+        )
+    frame = panel[
+        ["est", "ts", "day", "salidas", "llegadas", "capacidad", "flujo_acumulado"]
+    ].copy()
     grouped = frame.groupby("est", sort=False)
     frame["hora"] = frame["ts"].dt.hour
     frame["dia_semana"] = frame["ts"].dt.dayofweek

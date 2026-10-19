@@ -167,7 +167,11 @@ def load_capacities(processed_dir: Path, manifest: dict) -> pd.DataFrame:
 
 
 def compute_quality_summary(
-    manifest: dict, trips: pd.DataFrame, bounds: pd.DataFrame, capacities: pd.DataFrame, panel: pd.DataFrame
+    manifest: dict,
+    trips: pd.DataFrame,
+    bounds: pd.DataFrame,
+    capacities: pd.DataFrame,
+    panel: pd.DataFrame,
 ) -> pd.DataFrame:
     """Resumen de exclusiones y cobertura de P2 para el run y la tabla de calidad."""
     total_days = len(bounds)
@@ -207,7 +211,9 @@ def build_modeling_frame(
 def temporal_masks(panel: pd.DataFrame) -> dict[str, np.ndarray]:
     """Mascaras booleanas por conjunto temporal; sin traslape ni particion aleatoria."""
     ts = panel["ts"]
-    train = ((ts >= TRAIN_START) & (ts < pd.Timestamp(TRAIN_END) + pd.Timedelta(days=1))).to_numpy()
+    train = (
+        (ts >= TRAIN_START) & (ts < pd.Timestamp(TRAIN_END) + pd.Timedelta(days=1))
+    ).to_numpy()
     val = ((ts >= VAL_START) & (ts < pd.Timestamp(VAL_END) + pd.Timedelta(days=1))).to_numpy()
     test = ((ts >= TEST_START) & (ts < pd.Timestamp(TEST_END) + pd.Timedelta(days=1))).to_numpy()
     return {"train": train, "val": val, "test": test}
@@ -534,12 +540,16 @@ PROCESSED_OPTION = Annotated[
 ]
 
 
-def _prepare(manifest_path: Path, processed_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+def _prepare(
+    manifest_path: Path, processed_dir: Path
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
     """Verifica la entrada y arma panel, features y calidad. Falla si los datos no coinciden."""
     manifest = load_verified_manifest(manifest_path, processed_dir)
     panel, features, bounds, capacities, trips = build_modeling_frame(manifest, processed_dir)
     quality = compute_quality_summary(manifest, trips, bounds, capacities, panel)
-    logger.info("P2: data_version {} | filas de modelado {:,}", manifest["data_version"][:16], len(panel))
+    logger.info(
+        "P2: data_version {} | filas de modelado {:,}", manifest["data_version"][:16], len(panel)
+    )
     return panel, features, quality, manifest
 
 
@@ -601,7 +611,9 @@ def run_command(
             artifacts = dict(shared)
             if model is not None:
                 # La importancia por permutacion solo aplica a modelos ajustados.
-                importance = feature_importances(model, features, context["labels"], context["masks"])
+                importance = feature_importances(
+                    model, features, context["labels"], context["masks"]
+                )
                 importance_path = output_dir / f"p2_importancia_{name}.csv"
                 importance.to_csv(importance_path, index=False)
                 artifacts["importancia"] = importance_path
@@ -623,7 +635,9 @@ def run_command(
         model_obj_final = model_obj
         artifacts = dict(shared)
         if model_obj_final is not None:
-            importance = feature_importances(model_obj_final, features, context["labels"], context["masks"])
+            importance = feature_importances(
+                model_obj_final, features, context["labels"], context["masks"]
+            )
             importance_path = output_dir / f"p2_importancia_{final_model}.csv"
             importance.to_csv(importance_path, index=False)
             artifacts["importancia"] = importance_path
