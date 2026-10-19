@@ -1,0 +1,14 @@
+[
+  {
+    "baseline": "seasonal_168h",
+    "run_name": "P1-estacional-168h",
+    "run_id": "afb77ec9c5904efd9e9c059376d7b90b",
+    "experiment_id": "404903470010940206"
+  },
+  {
+    "baseline": "mean_4weeks",
+    "run_name": "P1-media-4semanas",
+    "run_id": "15d5969c45f54aadb44b80b8f0aa8563",
+    "experiment_id": "404903470010940206"
+  }
+]

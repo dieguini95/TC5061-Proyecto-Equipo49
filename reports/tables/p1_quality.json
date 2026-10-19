@@ -1,0 +1,57 @@
+{
+  "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+  "raw_rows": 4497877,
+  "clean_rows": 4493328,
+  "months": [
+    "2025_10",
+    "2025_11",
+    "2025_12",
+    "2026_01",
+    "2026_02",
+    "2026_03",
+    "2026_04",
+    "2026_05",
+    "2026_06",
+    "2026_07",
+    "2026_08",
+    "2026_09"
+  ],
+  "observed_origin_stations": 471,
+  "panel_rows": 4125960,
+  "coverage": {
+    "train": {
+      "known_station_hours": 2430096,
+      "evaluated_station_hours": 2160408,
+      "excluded_warmup_hours": 269688,
+      "n_stations": 382,
+      "zero_fraction": 0.5442296084813609
+    },
+    "val": {
+      "known_station_hours": 673656,
+      "evaluated_station_hours": 629424,
+      "excluded_warmup_hours": 44232,
+      "n_stations": 455,
+      "zero_fraction": 0.5644446350949439
+    },
+    "test": {
+      "known_station_hours": 338856,
+      "evaluated_station_hours": 336480,
+      "excluded_warmup_hours": 2376,
+      "n_stations": 470,
+      "zero_fraction": 0.5381508559201141
+    }
+  },
+  "selected_baseline": "mean_4weeks",
+  "selection_metric": "val_wape",
+  "source_granularity": "station_hour",
+  "timezone": "America/Mexico_City",
+  "station_eligibility": "first_departure_observed_before_forecast_midnight",
+  "evaluation_cohort": "four_previous_weekly_observations_available",
+  "limitations": [
+    "First observation is an activation proxy; closures are not observed.",
+    "Trips measure served departures, not unsatisfied demand.",
+    "Stations with less than four weeks of history are excluded and counted.",
+    "Monthly archives permit retrospective replay, not a real-time operational feed.",
+    "Baselines fixed before evaluation; learned candidate models are proposed only."
+  ]
+}
