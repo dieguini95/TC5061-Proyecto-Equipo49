@@ -3,8 +3,9 @@
 Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**, Etapa 1: propuesta y base reproducible.
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
-> **Estado (18 de octubre de 2026):** P1 tiene ingesta, variables, dos baselines y evidencia en MLflow.
-> La integración de las tres preguntas y los apartados marcados como **Pendiente** siguen en curso.
+> **Estado (18 de octubre de 2026):** las tres preguntas están integradas sobre la misma ingesta
+> (`dataset.py`) y el mismo manifiesto (`data_version`). P1 y P2 tienen runs en MLflow; P3 tiene su baseline
+> exploratorio. Ver la tabla de [estado de la actividad](#estado-de-la-actividad).
 
 ## Equipo
 
@@ -93,7 +94,7 @@ marcados como **PROVISIONAL** se ajustarán con los resultados de MLflow.
 
 ## Pipeline y modelos
 
-**P1 implementado** (pasos 10, 11 y 6); la integración de P2/P3 sigue pendiente. El pipeline contempla:
+Pipeline integrado sobre una sola ingesta (`dataset.py`). El pipeline contempla:
 
 - Ingesta reproducible y manifiesto con hash SHA-256 por archivo.
 - Panel estación-hora y features sin fuga del futuro (rezagos de 24 h o más en P1).
@@ -191,34 +192,53 @@ Se construye desde los viajes crudos de los 12 meses, sin inventario real por es
   `HistGradientBoostingClassifier`. Métrica principal: PR-AUC; además precision@k, recall con precisión
   ≥ 0.5, F1 con umbral de validación, ROC-AUC y Brier.
 
-Comandos (desde la raíz del proyecto, con los CSV en `01_insumos/datos/`):
+Comandos (desde la raíz del proyecto, después de la ingesta de `dataset.py`):
 
 ```bash
-# 1. Construye el panel estación-hora (cache en data/interim/)
-python -m mibici_ml.modeling.risk build-panel --raw-dir ../../01_insumos/datos --catalog-path ../../01_insumos/datos/nomenclatura_2026_09.csv
+# 1. Compara los 4 modelos solo en validación (no abre la prueba)
+python -m mibici_ml.modeling.risk evaluate --output-dir reports/tables
 
-# 2. Compara los 4 modelos solo en validación (no abre la prueba)
-python -m mibici_ml.modeling.risk evaluate --raw-dir ../../01_insumos/datos --catalog-path ../../01_insumos/datos/nomenclatura_2026_09.csv --output-dir /tmp/mibici-p2-evaluation
-
-# 3. Registra 4 runs de validación y 1 run final con prueba del modelo elegido
-MLFLOW_ALLOW_FILE_STORE=true python -m mibici_ml.modeling.risk run --raw-dir ../../01_insumos/datos --catalog-path ../../01_insumos/datos/nomenclatura_2026_09.csv --output-dir /tmp/mibici-p2-artifacts --final-model hist_gb --with-mlflow
+# 2. Registra 4 runs de validación y 1 run final con prueba del modelo elegido
+MLFLOW_ALLOW_FILE_STORE=true python -m mibici_ml.modeling.risk run --output-dir reports/tables \
+  --final-model hist_gb --with-mlflow
 ```
 
-Limitaciones: el inventario es una aproximación desde viajes (no hay rebalanceo ni bicicletas no
-registradas); la clase positiva es rara (~0.45 % de las filas del panel), lo que limita la precisión
-absoluta; y 4 estaciones con capacidad 0 se excluyen del modelado.
+El modelo final se elige en validación (PR-AUC). La prueba se usa una sola vez, para el modelo elegido.
 
-Cifras del panel de 12 meses (`data/interim/p2_calidad_datos.csv`): el porcentaje de estación-día no
-factibles es 7.35 % sobre la malla completa (estación × día, 175,680). El EDA reporta 9.07 % sobre
-solo los estación-día con actividad (142,406); el denominador distinto explica la diferencia.
+Resultados (run final `P2-hist_gb-final`, commit `b8651e1`, `data_version` `0f000bd5…`, `git_dirty=false`):
+
+| Modelo | PR-AUC validación | ROC-AUC validación |
+|---|---:|---:|
+| Persistencia `r(s, t-H)` | **0.1228** | 0.6654 |
+| HistGradientBoosting (final) | 0.0624 | **0.8701** |
+| Regresión logística | 0.0123 | 0.7722 |
+| Mayoritaria | 0.0038 | 0.5000 |
+
+El modelo final `hist_gb` obtiene en **prueba** PR-AUC 0.0733, ROC-AUC 0.8561, Brier 0.0051 y precisión en el
+top 10 % por hora de 0.0279. **Lectura honesta:** en PR-AUC de validación, la persistencia supera a los modelos
+aprendidos; el modelo se eligió con la regla de selección pre-declarada (mejor modelo aprendido en PR-AUC), no
+porque supere a la persistencia. Las cifras completas están en `reports/tables/p2_metrics.csv`.
+
+Limitaciones: el inventario es una aproximación desde viajes (no hay rebalanceo ni bicicletas no registradas);
+la clase positiva es rara (0.46 % de las filas del panel), lo que limita la precisión absoluta; y las 4 estaciones
+con capacidad 0 se excluyen del modelado. El porcentaje de estación-día no factibles es 7.35 % sobre la malla
+completa (estación × día, 175,680 filas) y 9.07 % sobre solo los estación-día con actividad (142,406); el
+denominador distinto explica la diferencia.
+
+Limitación de reproducibilidad: el hash de `stations.parquet` generado localmente (`d58c6e3e…`) no coincide con el
+del manifiesto publicado (`de449228…`), aunque los 12 Parquet de viajes sí coinciden. P2 verifica los hashes de los
+viajes y registra la diferencia en el artefacto `reproducibility/data_manifest.json` de cada run, en lugar de
+detener la ejecución, porque su única dependencia del catálogo es la capacidad por estación.
 
 ## Experimentos (MLflow)
 
-P1 ejecutado; integración conjunta pendiente (paso 6). Configuración base en `mibici_ml/config.py`:
+Experimento base integrado (paso 6). Configuración base en `mibici_ml/config.py`:
 
 - Nombre del experimento: `mibici-equipo49`.
 - Seguimiento local en `mlruns/` (no versionado).
-- P1 registra parámetros, métricas `val_*`/`test_*`, etiquetas, artefactos y el commit de Git.
+- Cada run registra parámetros (ventanas, semilla, horizonte, `data_version`), métricas `val_*` y `test_*`
+  (`test_*` solo en el run final), etiquetas (`team`, `question`, `git_commit`, `git_dirty`, `data_version`)
+  y artefactos. Ningún dato a nivel de viaje o de usuario se registra.
 
 P1 crea `P1-estacional-168h` y `P1-media-4semanas`; IDs en `reports/tables/p1_runs.json`.
 Se registra `data_version`, semilla, horizonte y versión del código. El snapshot
@@ -240,12 +260,28 @@ Abrir [MLflow local](http://127.0.0.1:5000). El comando P1 habilita el backend `
 
 ## Flujo de trabajo (GitHub Flow)
 
-**Pendiente** de evidencia (paso 9). Reglas acordadas:
+Reglas acordadas:
 
 - Ramas cortas desde `main`, un tema por rama.
 - Commits con [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `docs`, `build`, `chore`).
-- Cambios a `main` solo por Pull Request, con revisión de un integrante.
+- Cambios a `main` solo por Pull Request, con revisión de un integrante distinto de quien lo abre.
 - Plantilla de PR en `.github/pull_request_template.md`.
+- La protección de `main` exige una aprobación y conversaciones resueltas. Los administradores no están obligados
+  por la regla (decisión provisional, ver el documento de la Etapa 1).
+
+Pull requests del proyecto:
+
+| PR | Rama | Autor (GitHub) | Revisión aprobada por |
+|---|---|---|---|
+| [#1](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/1) | `feat/p3-clustering-mlflow` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
+| [#2](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/2) | `feat/p2-risk-mlflow` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
+| [#3](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/3) | `Saul` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
+| Cierre | `feat/p2-integracion-cierre` | dieguini95 (Diego Sánchez) | pendiente |
+
+Saúl Salgado no ha revisado aún un PR de otro integrante; ese es el único hueco de la regla de revisión.
+
+Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
+Diego Sánchez (P2 y cierre del repositorio).
 
 ## Resultados
 
@@ -261,7 +297,7 @@ P1 seleccionó la media de cuatro semanas por validación. MAE/RMSE en viajes po
 Prueba: 336,480 estaciones-hora de 470 estaciones; 487,915 salidas y cobertura del 99.30% de horas conocidas.
 El sesgo de la media es −0.2236: subestima el volumen. Son referencias iniciales, sin validación operativa.
 Tablas agregadas: `reports/tables/p1_metrics.csv`, `p1_station_metrics.csv` y `p1_quality.json`.
-Evidencia P1 (la integración conjunta continúa pendiente):
+Evidencia P1:
 
 - [Lista de runs](reports/figures/P1_mlflow_runs.png).
 - [Detalle y etiquetas](reports/figures/P1_mlflow_detail.png).
@@ -274,17 +310,20 @@ Evidencia P1 (la integración conjunta continúa pendiente):
 | Paso | Descripción | Estado |
 |---|---|---|
 | 1 | Formulación (ML Canvas) | Hecho (`references/`) |
-| 2 | Datos y EDA | Hecho (notebook y tablas agregadas) |
-| 3 | Pipeline | P1 implementado; integración de P2/P3 pendiente |
-| 4 | Modelos y métricas | Hecho en la propuesta |
+| 2 | Datos y EDA | Hecho (notebook, tablas agregadas y manifiesto) |
+| 3 | Pipeline | Hecho: P1, P2 y P3 (P3 no usa `dataset.py`, ver limitaciones) |
+| 4 | Modelos y métricas | Hecho: baselines y candidatos por pregunta |
 | 5 | Arquitectura | Hecho (`references/arquitectura_mibici_equipo49.png`) |
-| 6 | Experimentos en MLflow | Dos runs P1; integración conjunta pendiente |
-| 7 | Capturas de MLflow | P1 en reports/figures/; evidencia conjunta pendiente |
+| 6 | Experimentos en MLflow | Hecho: runs de P1, P2 y P3 en `mibici-equipo49` |
+| 7 | Capturas de MLflow | Hecho para P2 y P3; P1 en `reports/figures/P1_mlflow_*.png` |
 | 8 | Estructura del repositorio (ccds) | Hecho |
-| 9 | Flujo Git y evidencia de PRs | Pendiente |
-| 10 | Ingesta (`dataset.py`) | Ejecutada: 12 meses, catálogo y manifiesto |
-| 11 | Features (`features.py`) | P1 implementado y probado; integración pendiente |
-| 12 | README final | P1 documentado; cierre conjunto pendiente |
+| 9 | Flujo Git y PRs | Hecho en la tabla de PRs; revisión de Saúl pendiente |
+| 10 | Ingesta (`dataset.py`) | Hecho: 12 meses, catálogo, Parquet y manifiesto |
+| 11 | Features (`features.py`) | Hecho: P1 y P2 documentados y probados |
+| 12 | README final | Hecho en este PR |
+
+Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
+se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
 
 ## Licencia
 
