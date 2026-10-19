@@ -230,6 +230,13 @@ del manifiesto publicado (`de449228…`), aunque los 12 Parquet de viajes sí co
 viajes y registra la diferencia en el artefacto `reproducibility/data_manifest.json` de cada run, en lugar de
 detener la ejecución, porque su única dependencia del catálogo es la capacidad por estación.
 
+**Qué esperar al reproducir la ingesta en otra máquina.** Con `--source-dir` y los mismos CSV, los 12 Parquet de
+viajes reproducen byte a byte el manifiesto. Pero `data_version` también depende del hash de `stations.parquet`, que
+en una prueba en clon limpio salió distinto (`d58c6e3e…` frente a `de449228…`). Por eso la ingesta puede imprimir una
+versión distinta de `0f000bd5…`. Eso no indica un error de los viajes: es la misma limitación de arriba. No use
+`--refresh` para "arreglarlo", porque reescribiría el manifiesto versionado; la versión de referencia es la del
+manifiesto en Git.
+
 ## Experimentos (MLflow)
 
 Experimento base integrado (paso 6). Configuración base en `mibici_ml/config.py`:
