@@ -103,6 +103,12 @@ P2_INVENTORY_START = "midpoint"
 P2_MIN_PRECISION = 0.5  # metrica: recall cuando la precision es al menos este valor
 # PROVISIONAL: fraccion de estaciones-hora mas riesgosas para precision@k.
 P2_TOP_K_FRACTION = 0.10
+# P2 consume los Parquet limpios de dataset.py (mismo contrato que P1).
+P2_STATIONS_PATH = PROCESSED_DATA_DIR / "stations.parquet"
+P2_PANEL_PATH = PROCESSED_DATA_DIR / "p2_station_hour.parquet"
+P2_METRICS_PATH = TABLES_DIR / "p2_metrics.csv"
+P2_RUNS_PATH = TABLES_DIR / "p2_runs.json"
+P2_FIGURES = {"pr_curve": FIGURES_DIR / "P2_pr_curve.png"}
 
 # ---------------------------------------------------------------------------
 # P3: clustering de estaciones por perfil de uso

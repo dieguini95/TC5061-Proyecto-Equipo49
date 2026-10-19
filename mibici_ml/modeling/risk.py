@@ -1,39 +1,38 @@
 """P2: riesgo de que una estacion quede vacia o llena en las siguientes H horas.
 
-Pipeline (propuesta, seccion 2.1 y 4 de P2):
+La logica de datos vive en ``mibici_ml.features`` (panel, rango factible, etiqueta y
+features). Este modulo solo entrena, evalua y registra en MLflow.
 
-1. Lee los viajes crudos mensuales y el catalogo de estaciones (nomenclatura).
-2. Construye el flujo neto por estacion-hora (llegadas menos salidas).
-3. Calcula el rango factible del inventario inicial por estacion-dia y descarta los dias
-   infactibles (no pueden etiquetarse con solo viajes).
-4. Etiqueta `r(s, t) = 1` si el inventario estimado toca 0 o C en alguna de las
-   siguientes H horas del mismo dia. El inventario usa el punto medio del rango
-   factible (`s0 = (L + U) / 2`) y solo sirve para construir la etiqueta.
-5. Features solo con informacion hasta `t` (sin fuga del futuro).
-6. Particion temporal (entrenamiento, validacion, prueba); nunca aleatoria.
+Entrada: los Parquet limpios de ``dataset.py`` (``data/processed/trips`` y
+``stations.parquet``), verificados contra ``references/data_manifest.json``. No lee
+CSV crudos, para que P1 y P2 compartan la misma version de datos.
 
-Uso (desde la raiz del proyecto):
+Uso desde la raiz del proyecto (despues de ``python -m mibici_ml.dataset``):
 
-    python -m mibici_ml.modeling.risk build-panel --raw-dir ../../01_insumos/datos
-    python -m mibici_ml.modeling.risk evaluate
-    python -m mibici_ml.modeling.risk run --final-model hgb --with-mlflow
+    python -m mibici_ml.modeling.risk evaluate --output-dir /tmp/mibici-p2-eval
+    python -m mibici_ml.modeling.risk run --final-model hist_gb --with-mlflow
 """
 
 from __future__ import annotations
 
 import hashlib
-import io
+import json
+import os
 from pathlib import Path
 import subprocess
+import tempfile
 from typing import Annotated, Any
 
 from loguru import logger
-import mlflow
-from mlflow import sklearn as mlflow_sklearn
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
@@ -47,9 +46,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 import typer
 
+from mibici_ml import config
 from mibici_ml.config import (
+    DATA_MANIFEST_PATH,
     EXPERIMENT_NAME,
-    INTERIM_DATA_DIR,
     MLFLOW_TRACKING_URI,
     P2_HORIZON_HOURS,
     P2_MIN_PRECISION,
@@ -62,249 +62,155 @@ from mibici_ml.config import (
     VAL_END,
     VAL_START,
 )
+from mibici_ml.dataset import _data_version
+from mibici_ml.features import (
+    P2_FEATURE_COLUMNS,
+    build_p2_features,
+    build_p2_hourly_flows,
+    build_p2_station_day_panel,
+)
 
 app = typer.Typer(no_args_is_help=True, help="Clasificacion de riesgo P2 para estaciones MiBici.")
 
-COLUMNAS_VIAJE = [
-    "Viaje_Id",
-    "Usuario_Id",
-    "Genero",
-    "Año_de_nacimiento",
-    "Inicio_del_viaje",
-    "Fin_del_viaje",
-    "Origen_Id",
-    "Destino_Id",
-]
-FMT_FECHA = "%Y-%m-%d %H:%M:%S"
-PANEL_FILE = "p2_panel_estacion_hora.parquet"
-LABEL_FILE = "p2_etiquetas_estacion_hora.parquet"
 MODEL_NAMES = ("mayoritaria", "persistencia", "logistica", "hist_gb")
 CANDIDATE_NAMES = ("logistica", "hist_gb")
-FEATURE_COLUMNS = (
-    "hora",
-    "dia_semana",
-    "fin_de_semana",
-    "capacidad",
-    "flujo_acumulado",
-    "flujo_acumulado_sobre_c",
-    "llegadas_1h",
-    "salidas_1h",
-    "llegadas_2h",
-    "salidas_2h",
-    "salidas_misma_hora_ayer",
-)
-ARTIFACT_NAMES = (
-    "p2_metricas_modelos.csv",
-    "p2_curva_pr.png",
-    "p2_calidad_datos.csv",
-    "p2_importancia_features.csv",
-)
+FEATURE_COLUMNS = P2_FEATURE_COLUMNS
 N_TOP_K_MIN = 1
+# HistGradientBoosting usa TreePredictor, que MLflow marca como tipo no confiable (skops).
+# El modelo se entrena localmente en este repo, asi que lo permitimos solo para este tipo.
 SKOPS_TRUSTED_TYPES = [
     "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
 ]
 
 
 # ---------------------------------------------------------------------------
-# Lectura de viajes crudos
+# Entrada verificada: Parquet de dataset.py + manifiesto
 # ---------------------------------------------------------------------------
 
 
-def read_trip_file(path: Path) -> pd.DataFrame:
-    """Lee un CSV mensual de viajes detectando UTF-8 o cp1252 (como en el EDA)."""
-    if not path.exists():
-        raise ValueError(f"No existe el archivo de viajes: {path}")
-    raw = path.read_bytes()
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        text = raw.decode("cp1252", errors="replace")
-    try:
-        frame = pd.read_csv(io.StringIO(text), dtype=str, keep_default_na=False)
-    except (pd.errors.ParserError, pd.errors.EmptyDataError) as error:
-        raise ValueError(f"No se pudo leer el CSV de viajes: {path}: {error}") from error
-    if len(frame.columns) != len(COLUMNAS_VIAJE):
-        raise ValueError(
-            f"{path.name} tiene {len(frame.columns)} columnas; se esperaban {len(COLUMNAS_VIAJE)}."
-        )
-    frame.columns = COLUMNAS_VIAJE
-    logger.info("Viajes leidos de {}: {:,}", path.name, len(frame))
-    return frame
+def file_sha256(path: Path) -> str:
+    """SHA-256 por bloques; no carga el archivo completo en memoria."""
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
-def load_station_catalog(catalog_path: Path) -> pd.DataFrame:
-    """Lee la nomenclatura de estaciones con capacidad `dpcapacity`."""
-    try:
-        catalog = pd.read_csv(catalog_path, dtype=str, keep_default_na=False)
-    except (OSError, pd.errors.ParserError) as error:
-        raise ValueError(f"No se pudo leer el catalogo {catalog_path}: {error}") from error
-    required = {"id", "dpcapacity"}
-    if not required.issubset(catalog.columns):
-        raise ValueError(f"El catalogo debe contener las columnas {sorted(required)}.")
-    catalog["est"] = catalog["id"].astype(str)
-    catalog["capacidad"] = pd.to_numeric(catalog["dpcapacity"], errors="coerce").fillna(0)
-    catalog["capacidad"] = catalog["capacidad"].astype(int)
-    return catalog[["est", "capacidad"]].drop_duplicates("est")
+def load_verified_manifest(manifest_path: Path, processed_dir: Path) -> dict:
+    """Carga el manifiesto y verifica identidad, meses y hashes de los Parquet usados.
 
-
-def clean_trips(trips: pd.DataFrame, catalog_ids: set[str]) -> tuple[pd.DataFrame, dict[str, int]]:
-    """Elimina duplicados, fechas invalidas y viajes fuera del catalogo; devuelve conteos."""
-    counts: dict[str, int] = {"viajes_entrada": len(trips)}
-    trips = trips.drop_duplicates("Viaje_Id")
-    counts["viajes_duplicados_eliminados"] = counts["viajes_entrada"] - len(trips)
-    start = pd.to_datetime(trips["Inicio_del_viaje"], format=FMT_FECHA, errors="coerce")
-    end = pd.to_datetime(trips["Fin_del_viaje"], format=FMT_FECHA, errors="coerce")
-    valid_dates = start.notna() & end.notna() & (end >= start)
-    counts["viajes_fechas_invalidas"] = int((~valid_dates).sum())
-    trips = trips.loc[valid_dates].assign(
-        inicio=start[valid_dates].to_numpy(), fin=end[valid_dates].to_numpy()
-    )
-    in_catalog = trips["Origen_Id"].isin(catalog_ids) & trips["Destino_Id"].isin(catalog_ids)
-    counts["viajes_fuera_catalogo"] = int((~in_catalog).sum())
-    trips = trips.loc[in_catalog]
-    counts["viajes_validos"] = len(trips)
-    return trips, counts
-
-
-def build_hourly_flows(trips: pd.DataFrame) -> pd.DataFrame:
-    """Salidas y llegadas por estacion-hora a partir de viajes limpios."""
-    departures = (
-        trips.assign(ts=trips["inicio"].dt.floor("h"), est=trips["Origen_Id"])
-        .groupby(["est", "ts"])
-        .size()
-        .rename("salidas")
-    )
-    arrivals = (
-        trips.assign(ts=trips["fin"].dt.floor("h"), est=trips["Destino_Id"])
-        .groupby(["est", "ts"])
-        .size()
-        .rename("llegadas")
-    )
-    flows = pd.concat([departures, arrivals], axis=1).fillna(0).astype("int64")
-    return flows.reset_index()
-
-
-# ---------------------------------------------------------------------------
-# Inventario factible, etiqueta y panel
-# ---------------------------------------------------------------------------
-
-
-def build_station_day_panel(
-    flows: pd.DataFrame, capacities: pd.DataFrame
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Panel estacion-hora con flujo acumulado, etiqueta y factibilidad por estacion-dia.
-
-    Devuelve (panel_horario, resumen_por_estacion_dia). Solo se conservan los dias factibles
-    y con capacidad positiva en el panel de modelado.
+    Rechaza datos ausentes o modificados: si la version no coincide, P2 no puede
+    afirmar que usa la misma entrada que P1.
     """
-    grid_hours = pd.date_range(
-        flows["ts"].min().normalize(),
-        flows["ts"].max().floor("D") + pd.Timedelta(hours=23),
-        freq="h",
-    )
-    stations = capacities.loc[capacities["capacidad"] > 0, ["est", "capacidad"]]
-    full_index = pd.MultiIndex.from_product([stations["est"], grid_hours], names=["est", "ts"])
-    panel = (
-        flows.set_index(["est", "ts"])
-        .reindex(full_index, fill_value=0)
-        .reset_index()
-        .merge(stations, on="est", how="inner")
-    )
-    panel["neto"] = panel["llegadas"] - panel["salidas"]
-    panel["day"] = panel["ts"].dt.normalize()
-    panel = panel.sort_values(["est", "ts"]).reset_index(drop=True)
-    panel["flujo_acumulado"] = panel.groupby(["est", "day"])["neto"].cumsum()
-
-    bounds = panel.groupby(["est", "day"], sort=False).agg(
-        max_f=("flujo_acumulado", "max"),
-        min_f=("flujo_acumulado", "min"),
-        capacidad=("capacidad", "first"),
-    )
-    bounds["max_f"] = bounds["max_f"].clip(lower=0)
-    bounds["min_f"] = bounds["min_f"].clip(upper=0)
-    bounds["lower"] = np.maximum(0, -bounds["min_f"])
-    bounds["upper"] = np.minimum(bounds["capacidad"], bounds["capacidad"] - bounds["max_f"])
-    bounds["factible"] = bounds["lower"] <= bounds["upper"]
-    bounds["s0"] = (bounds["lower"] + bounds["upper"]) / 2
-    bounds = bounds.reset_index()
-
-    panel = panel.merge(bounds[["est", "day", "factible", "s0"]], on=["est", "day"], how="left")
-    panel["factible"] = panel["factible"].eq(True)
-    panel = panel.loc[panel["factible"]].copy()
-    panel["inventario"] = panel["s0"] + panel["flujo_acumulado"]
-    panel["label"] = _risk_labels(panel, P2_HORIZON_HOURS)
-    return panel, bounds
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not manifest.get("data_version") or not manifest.get("trips"):
+        raise ValueError("Manifiesto sin data_version o archivos de viajes.")
+    if _data_version(manifest) != manifest["data_version"]:
+        raise ValueError("La identidad del manifiesto fue modificada.")
+    expected_months = [
+        p.strftime("%Y_%m")
+        for p in pd.period_range(config.START_MONTH, config.END_MONTH, freq="M")
+    ]
+    if [entry["month"] for entry in manifest["trips"]] != expected_months:
+        raise ValueError("El manifiesto debe enumerar exactamente los meses configurados.")
+    for entry in manifest["trips"]:
+        path = processed_dir / entry["processed_path"]
+        if not path.is_file() or file_sha256(path) != entry["processed_sha256"]:
+            raise ValueError(f"Datos ausentes o modificados: {path}. Ejecute la ingesta.")
+    # El catalogo de estaciones solo aporta capacidad. Su hash puede diferir entre
+    # plataformas (ver README, limitacion de reproducibilidad), asi que P2 lo registra
+    # como advertencia en lugar de rechazar la ejecucion.
+    stations_entry = manifest["stations"]
+    stations_path = processed_dir / stations_entry["processed_path"]
+    if not stations_path.is_file():
+        raise ValueError(f"Catalogo ausente: {stations_path}. Ejecute la ingesta.")
+    stations_hash = file_sha256(stations_path)
+    manifest["_stations_hash_check"] = {
+        "expected_sha256": stations_entry["processed_sha256"],
+        "local_sha256": stations_hash,
+        "match": stations_hash == stations_entry["processed_sha256"],
+    }
+    if not manifest["_stations_hash_check"]["match"]:
+        print(
+            "ADVERTENCIA: stations.parquet no coincide con el manifiesto "
+            f"(local {stations_hash[:12]}, manifiesto {stations_entry['processed_sha256'][:12]}). "
+            "P2 usa solo capacidades; se registra como limitacion."
+        )
+    return manifest
 
 
-def _risk_labels(panel: pd.DataFrame, horizon: int) -> np.ndarray:
-    """1 si el inventario estimado toca 0 o C en las siguientes `horizon` horas del mismo dia."""
-    labels = np.zeros(len(panel), dtype="int64")
-    empty = (panel["inventario"] <= 0).to_numpy()
-    full = (panel["inventario"] >= panel["capacidad"]).to_numpy()
-    risk = (empty | full).astype("int64")
-    frame = pd.DataFrame(
-        {"est": panel["est"].to_numpy(), "day": panel["day"].to_numpy(), "risk": risk}
+def load_trips(processed_dir: Path, manifest: dict) -> pd.DataFrame:
+    """Une los viajes limpios de los meses del manifiesto, en el orden del manifiesto."""
+    frames = [
+        pd.read_parquet(
+            processed_dir / entry["processed_path"],
+            columns=["origin_id", "destination_id", "start_time", "end_time"],
+        )
+        for entry in manifest["trips"]
+    ]
+    trips = pd.concat(frames, ignore_index=True)
+    if trips.empty:
+        raise ValueError("No hay viajes limpios para P2.")
+    return trips
+
+
+def load_capacities(processed_dir: Path, manifest: dict) -> pd.DataFrame:
+    """Capacidad por estacion desde ``stations.parquet``; ceros y ausentes se excluyen."""
+    stations = pd.read_parquet(processed_dir / manifest["stations"]["processed_path"])
+    capacities = stations[["station_id", "capacity"]].rename(
+        columns={"station_id": "est", "capacity": "capacidad"}
     )
-    for step in range(1, horizon + 1):
-        future = frame.groupby(["est", "day"])["risk"].shift(-step)
-        labels = np.maximum(labels, future.fillna(0).to_numpy().astype("int64"))
-    return labels
+    capacities["est"] = capacities["est"].astype("int64")
+    capacities["capacidad"] = capacities["capacidad"].fillna(0).astype("int64")
+    return capacities.drop_duplicates("est")
 
 
 def compute_quality_summary(
-    counts: dict[str, int], bounds: pd.DataFrame, capacities: pd.DataFrame, panel: pd.DataFrame
+    manifest: dict, trips: pd.DataFrame, bounds: pd.DataFrame, capacities: pd.DataFrame, panel: pd.DataFrame
 ) -> pd.DataFrame:
-    """Resumen de calidad y de exclusiones para el run de MLflow."""
+    """Resumen de exclusiones y cobertura de P2 para el run y la tabla de calidad."""
     total_days = len(bounds)
-    summary: dict[str, Any] = dict(counts)
-    summary.update(
-        {
-            "estacion_dia_total": total_days,
-            "estacion_dia_factibles": int(bounds["factible"].sum()),
-            "estacion_dia_no_factibles": int((~bounds["factible"]).sum()),
-            "pct_estacion_dia_no_factibles": round(100 * (1 - bounds["factible"].mean()), 2)
-            if total_days
-            else 0.0,
-            "estaciones_capacidad_cero": int((capacities["capacidad"] == 0).sum()),
-            "filas_panel_modelado": len(panel),
-            "tasa_positivos_panel": round(float(panel["label"].mean()), 4) if len(panel) else 0.0,
-        }
-    )
+    summary: dict[str, Any] = {
+        "data_version": manifest["data_version"],
+        "viajes_validos": len(trips),
+        "estacion_dia_total": total_days,
+        "estacion_dia_factibles": int(bounds["factible"].sum()) if total_days else 0,
+        "estacion_dia_no_factibles": int((~bounds["factible"]).sum()) if total_days else 0,
+        "pct_estacion_dia_no_factibles": round(100 * (1 - bounds["factible"].mean()), 2)
+        if total_days
+        else 0.0,
+        "estaciones_capacidad_cero": int((capacities["capacidad"] == 0).sum()),
+        "filas_panel_modelado": len(panel),
+        "tasa_positivos_panel": round(float(panel["label"].mean()), 4) if len(panel) else 0.0,
+    }
     return pd.DataFrame([summary])
+
+
+def build_modeling_frame(
+    manifest: dict, processed_dir: Path
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Panel, features, factibilidad, capacidades y viajes a partir de la entrada verificada."""
+    trips = load_trips(processed_dir, manifest)
+    capacities = load_capacities(processed_dir, manifest)
+    flows = build_p2_hourly_flows(trips)
+    panel, bounds = build_p2_station_day_panel(flows, capacities)
+    features = build_p2_features(panel)
+    return panel, features, bounds, capacities, trips
+
+
+# ---------------------------------------------------------------------------
+# Particion temporal
+# ---------------------------------------------------------------------------
 
 
 def temporal_masks(panel: pd.DataFrame) -> dict[str, np.ndarray]:
     """Mascaras booleanas por conjunto temporal; sin traslape ni particion aleatoria."""
     ts = panel["ts"]
-    train = (
-        (ts >= TRAIN_START) & (ts < pd.Timestamp(TRAIN_END) + pd.Timedelta(days=1))
-    ).to_numpy()
+    train = ((ts >= TRAIN_START) & (ts < pd.Timestamp(TRAIN_END) + pd.Timedelta(days=1))).to_numpy()
     val = ((ts >= VAL_START) & (ts < pd.Timestamp(VAL_END) + pd.Timedelta(days=1))).to_numpy()
     test = ((ts >= TEST_START) & (ts < pd.Timestamp(TEST_END) + pd.Timedelta(days=1))).to_numpy()
     return {"train": train, "val": val, "test": test}
-
-
-# ---------------------------------------------------------------------------
-# Features (solo informacion hasta t)
-# ---------------------------------------------------------------------------
-
-
-def build_features(panel: pd.DataFrame) -> pd.DataFrame:
-    """Features calculadas con rezagos hacia el pasado; ninguna mira a t+1 o mas."""
-    frame = panel[
-        ["est", "ts", "day", "salidas", "llegadas", "capacidad", "flujo_acumulado"]
-    ].copy()
-    grouped = frame.groupby("est", sort=False)
-    frame["hora"] = frame["ts"].dt.hour
-    frame["dia_semana"] = frame["ts"].dt.dayofweek
-    frame["fin_de_semana"] = (frame["dia_semana"] >= 5).astype("int64")
-    frame["flujo_acumulado_sobre_c"] = frame["flujo_acumulado"] / frame["capacidad"]
-    frame["llegadas_1h"] = frame["llegadas"]
-    frame["salidas_1h"] = frame["salidas"]
-    frame["llegadas_2h"] = frame["llegadas"] + grouped["llegadas"].shift(1).fillna(0)
-    frame["salidas_2h"] = frame["salidas"] + grouped["salidas"].shift(1).fillna(0)
-    frame["salidas_misma_hora_ayer"] = grouped["salidas"].shift(24).fillna(0)
-    return frame[["est", "ts"] + list(FEATURE_COLUMNS)].reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -313,7 +219,7 @@ def build_features(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def persistence_scores(panel: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
-    """Persistencia: el riesgo observado en la ventana previa de H horas, sin ajuste."""
+    """Persistencia: el riesgo observado H horas antes, sin ajuste."""
     frame = pd.DataFrame(
         {"est": panel["est"].to_numpy(), "day": panel["day"].to_numpy(), "label": labels}
     )
@@ -322,7 +228,7 @@ def persistence_scores(panel: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
 
 
 def build_model(name: str, random_seed: int) -> Any:
-    """Construye un modelo sin ajustarlo. Solo se usan los nombres de MODEL_NAMES."""
+    """Construye un modelo sin ajustarlo."""
     if name == "mayoritaria":
         return DummyClassifier(strategy="most_frequent")
     if name == "logistica":
@@ -401,6 +307,11 @@ def score_split(
     }
 
 
+def _positive_proba(model: Any, matrix: np.ndarray) -> np.ndarray:
+    """Probabilidad de la clase positiva (riesgo = 1)."""
+    return model.predict_proba(matrix)[:, 1]
+
+
 def fit_and_score(
     name: str,
     features: pd.DataFrame,
@@ -412,7 +323,6 @@ def fit_and_score(
     """Ajusta un modelo en entrenamiento y regresa puntajes de validacion y prueba."""
     x_all = features[list(FEATURE_COLUMNS)].to_numpy(dtype=float)
     ts = panel["ts"]
-    scores: dict[str, np.ndarray] = {}
     if name == "persistencia":
         persist = persistence_scores(panel, labels)
         scores = {"val": persist[masks["val"]], "test": persist[masks["test"]]}
@@ -430,17 +340,10 @@ def fit_and_score(
     return metrics, scores, model
 
 
-def _positive_proba(model: Any, matrix: np.ndarray) -> np.ndarray:
-    """Probabilidad de la clase positiva (riesgo = 1)."""
-    return model.predict_proba(matrix)[:, 1]
-
-
 def feature_importances(
     model: Any, features: pd.DataFrame, labels: np.ndarray, masks: dict[str, np.ndarray]
 ) -> pd.DataFrame:
     """Importancia por permutacion en validacion (no ajusta nada nuevo)."""
-    from sklearn.inspection import permutation_importance
-
     x_val = features[list(FEATURE_COLUMNS)].to_numpy(dtype=float)[masks["val"]]
     y_val = labels[masks["val"]]
     result = permutation_importance(
@@ -460,11 +363,6 @@ def plot_pr_curves(
     scores_by_model: dict[str, tuple[np.ndarray, np.ndarray]], output_path: Path
 ) -> None:
     """Curvas precision-recall de validacion por modelo."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
     figure, axis = plt.subplots(figsize=(7, 5))
     for name, (labels, scores) in scores_by_model.items():
         if len(np.unique(labels)) < 2:
@@ -480,74 +378,6 @@ def plot_pr_curves(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=300)
     plt.close(figure)
-
-
-def compute_file_sha256(input_path: Path) -> str:
-    digest = hashlib.sha256()
-    with input_path.open("rb") as source:
-        for block in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def get_git_commit() -> str:
-    try:
-        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
-    except (OSError, subprocess.CalledProcessError):
-        return "unknown"
-
-
-# ---------------------------------------------------------------------------
-# Pipeline principal
-# ---------------------------------------------------------------------------
-
-
-def build_modeling_frame(
-    raw_dir: Path, catalog_path: Path
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, int], list[Path]]:
-    """Lee los 12 meses, limpia, arma el panel y devuelve (panel, features, bounds, counts, files)."""
-    catalog = load_station_catalog(catalog_path)
-    files = sorted(raw_dir.glob("datos_abiertos_*.csv"))
-    if not files:
-        raise ValueError(f"No hay CSV de viajes en {raw_dir}")
-    trips = pd.concat([read_trip_file(path) for path in files], ignore_index=True)
-    trips, counts = clean_trips(trips, set(catalog["est"]))
-    flows = build_hourly_flows(trips)
-    panel, bounds = build_station_day_panel(flows, catalog)
-    features = build_features(panel)
-    return panel, features, bounds, counts, files
-
-
-def build_panel_artifacts(
-    raw_dir: Path, catalog_path: Path, interim_dir: Path
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Construye el panel y lo guarda en `interim_dir` para reutilizarlo sin releer los CSV."""
-    catalog = load_station_catalog(catalog_path)
-    panel, features, bounds, counts, _ = build_modeling_frame(raw_dir, catalog_path)
-    quality = compute_quality_summary(counts, bounds, catalog, panel)
-    interim_dir.mkdir(parents=True, exist_ok=True)
-    panel.to_parquet(interim_dir / PANEL_FILE, index=False)
-    quality.to_csv(interim_dir / "p2_calidad_datos.csv", index=False)
-    labels = panel[["est", "ts", "label"]]
-    labels.to_parquet(interim_dir / LABEL_FILE, index=False)
-    return panel, features, labels, quality
-
-
-def load_or_build_panel(
-    raw_dir: Path, catalog_path: Path, interim_dir: Path, rebuild: bool
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Usa el panel cacheado si existe; si no, lo construye desde los viajes crudos."""
-    panel_path = interim_dir / PANEL_FILE
-    quality_path = interim_dir / "p2_calidad_datos.csv"
-    if rebuild or not panel_path.exists() or not quality_path.exists():
-        panel, features, _labels, quality = build_panel_artifacts(
-            raw_dir, catalog_path, interim_dir
-        )
-        return panel, features, quality
-    panel = pd.read_parquet(panel_path)
-    features = build_features(panel)
-    quality = pd.read_csv(quality_path)
-    return panel, features, quality
 
 
 def evaluate_all(
@@ -584,6 +414,28 @@ def test_metrics_for(
     return metrics, test_scores
 
 
+# ---------------------------------------------------------------------------
+# Provenance y MLflow
+# ---------------------------------------------------------------------------
+
+
+def get_git_commit_and_dirty() -> tuple[str, bool]:
+    """Commit actual y si hay cambios sin confirmar. Un arbol sucio no es reproducible."""
+    try:
+        root = config.PROJ_ROOT
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        dirty = bool(
+            subprocess.check_output(
+                ["git", "status", "--porcelain"], cwd=root, text=True, stderr=subprocess.DEVNULL
+            ).strip()
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unavailable", True
+    return commit, dirty
+
+
 def log_p2_run(
     *,
     run_name: str,
@@ -596,37 +448,51 @@ def log_p2_run(
     artifacts: dict[str, Path],
     model: Any | None,
     temporal_holdout: bool,
-    input_hashes: dict[str, str],
+    manifest: dict,
     experiment_name: str = EXPERIMENT_NAME,
     tracking_uri: str = MLFLOW_TRACKING_URI,
 ) -> str:
-    """Registra un run de P2 en MLflow y regresa su ID."""
+    """Registra un run de P2 en MLflow y regresa su ID.
+
+    Etiquetas: equipo, pregunta, tipo de run, commit y estado del arbol. Parametros:
+    ventanas, semilla, horizonte y ``data_version``. Sin datos a nivel viaje ni
+    identificadores de usuario.
+    """
+    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+    import mlflow
+    from mlflow import sklearn as mlflow_sklearn
+
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
+    commit, dirty = get_git_commit_and_dirty()
     params: dict[str, Any] = {
         "model": model_name,
         "horizon_hours": P2_HORIZON_HOURS,
         "top_k_fraction": P2_TOP_K_FRACTION,
         "min_precision": P2_MIN_PRECISION,
         "random_seed": random_seed,
+        "start_month": config.START_MONTH,
+        "end_month": config.END_MONTH,
         "train_window": f"{TRAIN_START}_to_{TRAIN_END}",
         "val_window": f"{VAL_START}_to_{VAL_END}",
         "test_window": f"{TEST_START}_to_{TEST_END}",
+        "data_version": manifest["data_version"],
         "feature_names": ",".join(FEATURE_COLUMNS),
         "label_definition": "inventario_estimado_toca_0_o_C_en_H_horas_mismo_dia",
         "inventory_start": "midpoint_feasible_range",
         "infeasible_days_policy": "excluded_from_train_val_test",
         **params_extra,
     }
-    commit = get_git_commit()
     tags = {
         "team": "equipo49",
         "question": "P2",
         "run_type": run_type,
-        "data_scope": "trips_raw_full_12m",
+        "data_scope": "dataset_py_processed_12m",
         "temporal_holdout": str(temporal_holdout).lower(),
         "limitation": "approx_inventory_from_trips_only",
         "git_commit": commit,
+        "git_dirty": str(dirty).lower(),
+        "data_version": manifest["data_version"],
     }
     quality_row = quality.iloc[0]
     for key in (
@@ -637,67 +503,57 @@ def log_p2_run(
         "tasa_positivos_panel",
     ):
         params[f"quality_{key}"] = quality_row[key]
-    with mlflow.start_run(run_name=run_name) as run:
-        mlflow.log_params({k: str(v) for k, v in params.items()})
-        mlflow.log_metrics({k: float(v) for k, v in metrics.items() if np.isfinite(v)})
-        mlflow.set_tags(tags)
-        for input_name, digest in input_hashes.items():
-            mlflow.set_tag(f"input_sha256_{input_name}", digest)
-        for artifact_path in artifacts.values():
-            mlflow.log_artifact(str(artifact_path))
-        if model is not None:
-            # HistGradientBoosting usa TreePredictor, que MLflow marca como tipo no confiable
-            # (skops). El modelo se entrena localmente en este repo, asi que lo permitimos
-            # explicitamente solo para este tipo.
-            mlflow_sklearn.log_model(
-                model,
-                name=f"p2_{model_name}",
-                skops_trusted_types=SKOPS_TRUSTED_TYPES,
-            )
-        return run.info.run_id
-
-
-def _input_hashes(files: list[Path], catalog_path: Path) -> dict[str, str]:
-    """SHA-256 de cada CSV de entrada (viajes y nomenclatura)."""
-    hashes = {path.stem: compute_file_sha256(path) for path in files}
-    hashes["nomenclatura"] = compute_file_sha256(catalog_path)
-    return hashes
+    with tempfile.TemporaryDirectory(prefix="p2-manifest-") as temporary:
+        manifest_copy = Path(temporary) / "data_manifest.json"
+        manifest_copy.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+        with mlflow.start_run(run_name=run_name) as run:
+            mlflow.log_params({k: str(v) for k, v in params.items()})
+            mlflow.log_metrics({k: float(v) for k, v in metrics.items() if np.isfinite(v)})
+            mlflow.set_tags(tags)
+            mlflow.log_artifact(str(manifest_copy), artifact_path="reproducibility")
+            for artifact_path in artifacts.values():
+                mlflow.log_artifact(str(artifact_path))
+            if model is not None:
+                mlflow_sklearn.log_model(
+                    model,
+                    name=f"p2_{model_name}",
+                    skops_trusted_types=SKOPS_TRUSTED_TYPES,
+                )
+            return run.info.run_id
 
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
+MANIFEST_OPTION = Annotated[
+    Path, typer.Option(help="Manifiesto de dataset.py con data_version y hashes.")
+]
+PROCESSED_OPTION = Annotated[
+    Path, typer.Option(help="Carpeta con trips/ y stations.parquet de dataset.py.")
+]
 
-@app.command("build-panel")
-def build_panel_command(
-    *,
-    raw_dir: Annotated[Path, typer.Option(help="Carpeta con los CSV mensuales de viajes.")],
-    catalog_path: Annotated[
-        Path, typer.Option(help="CSV de nomenclatura de estaciones (id, dpcapacity).")
-    ],
-    interim_dir: Annotated[
-        Path, typer.Option(help="Destino del panel cacheado.")
-    ] = INTERIM_DATA_DIR,
-) -> None:
-    """Limpia los viajes crudos y guarda el panel estacion-hora para P2."""
-    _, _, _, quality = build_panel_artifacts(raw_dir, catalog_path, interim_dir)
-    logger.success("Panel P2 guardado en {}\n{}", interim_dir, quality.T.to_string())
+
+def _prepare(manifest_path: Path, processed_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    """Verifica la entrada y arma panel, features y calidad. Falla si los datos no coinciden."""
+    manifest = load_verified_manifest(manifest_path, processed_dir)
+    panel, features, bounds, capacities, trips = build_modeling_frame(manifest, processed_dir)
+    quality = compute_quality_summary(manifest, trips, bounds, capacities, panel)
+    logger.info("P2: data_version {} | filas de modelado {:,}", manifest["data_version"][:16], len(panel))
+    return panel, features, quality, manifest
 
 
 @app.command("evaluate")
 def evaluate_command(
     *,
-    raw_dir: Annotated[Path, typer.Option(help="Carpeta con los CSV mensuales de viajes.")],
-    catalog_path: Annotated[Path, typer.Option(help="CSV de nomenclatura de estaciones.")],
-    interim_dir: Annotated[Path, typer.Option(help="Panel cacheado.")] = INTERIM_DATA_DIR,
-    output_dir: Annotated[Path, typer.Option(help="Metricas de validacion y figuras.")],
-    rebuild: Annotated[bool, typer.Option(help="Reconstruir el panel desde los CSV.")] = False,
+    manifest_path: MANIFEST_OPTION = DATA_MANIFEST_PATH,
+    processed_dir: PROCESSED_OPTION = config.PROCESSED_DATA_DIR,
+    output_dir: Annotated[Path, typer.Option(help="Metricas de validacion y figura.")],
     random_seed: Annotated[int, typer.Option(help="Semilla de los modelos.")] = RANDOM_SEED,
 ) -> None:
     """Compara los 4 modelos solo en validacion; no abre la particion de prueba."""
-    panel, features, _ = load_or_build_panel(raw_dir, catalog_path, interim_dir, rebuild)
-    metrics, _, val_scores = evaluate_all(panel, features, random_seed)
+    panel, features, _quality, _manifest = _prepare(manifest_path, processed_dir)
+    metrics, _context, val_scores = evaluate_all(panel, features, random_seed)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics.to_csv(output_dir / "p2_metricas_validacion.csv", index=False)
     plot_pr_curves(val_scores, output_dir / "p2_curva_pr_validacion.png")
@@ -708,22 +564,19 @@ def evaluate_command(
 @app.command("run")
 def run_command(
     *,
-    raw_dir: Annotated[Path, typer.Option(help="Carpeta con los CSV mensuales de viajes.")],
-    catalog_path: Annotated[Path, typer.Option(help="CSV de nomenclatura de estaciones.")],
-    interim_dir: Annotated[Path, typer.Option(help="Panel cacheado.")] = INTERIM_DATA_DIR,
-    output_dir: Annotated[Path, typer.Option(help="Directorio de artefactos del run final.")],
+    manifest_path: MANIFEST_OPTION = DATA_MANIFEST_PATH,
+    processed_dir: PROCESSED_OPTION = config.PROCESSED_DATA_DIR,
+    output_dir: Annotated[Path, typer.Option(help="Directorio de artefactos del run.")],
     final_model: Annotated[
-        str,
-        typer.Option(help="Modelo elegido tras revisar evaluate: logistica o hist_gb."),
+        str, typer.Option(help="Modelo elegido tras revisar evaluate: logistica o hist_gb.")
     ],
-    rebuild: Annotated[bool, typer.Option(help="Reconstruir el panel desde los CSV.")] = False,
     random_seed: Annotated[int, typer.Option(help="Semilla de los modelos.")] = RANDOM_SEED,
     with_mlflow: Annotated[bool, typer.Option(help="Registrar runs en MLflow local.")] = False,
 ) -> None:
     """Registra 4 runs de validacion y 1 run final con metricas de prueba del modelo elegido."""
     if final_model not in CANDIDATE_NAMES:
         raise typer.BadParameter(f"--final-model debe ser uno de: {', '.join(CANDIDATE_NAMES)}.")
-    panel, features, quality = load_or_build_panel(raw_dir, catalog_path, interim_dir, rebuild)
+    panel, features, quality, manifest = _prepare(manifest_path, processed_dir)
     metrics, context, val_scores = evaluate_all(panel, features, random_seed)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics.to_csv(output_dir / "p2_metricas_validacion.csv", index=False)
@@ -736,23 +589,22 @@ def run_command(
     final_metrics = {**final_row.drop(labels="modelo").to_dict(), **test_metrics}
 
     model_obj = context["models"].get(final_model)
-    importance = (
-        feature_importances(model_obj, features, context["labels"], context["masks"])
-        if model_obj is not None
-        else pd.DataFrame()
-    )
-    importance.to_csv(output_dir / "p2_importancia_features.csv", index=False)
-    artifacts = {
+    shared = {
         "metricas": output_dir / "p2_metricas_validacion.csv",
         "curva_pr": output_dir / "p2_curva_pr.png",
         "calidad": output_dir / "p2_calidad_datos.csv",
-        "importancia": output_dir / "p2_importancia_features.csv",
     }
     if with_mlflow:
-        raw_files = sorted(raw_dir.glob("datos_abiertos_*.csv"))
-        hashes = _input_hashes(raw_files, catalog_path)
         for name in MODEL_NAMES:
             row = metrics.loc[metrics["modelo"] == name].iloc[0]
+            model = context["models"].get(name)
+            artifacts = dict(shared)
+            if model is not None:
+                # La importancia por permutacion solo aplica a modelos ajustados.
+                importance = feature_importances(model, features, context["labels"], context["masks"])
+                importance_path = output_dir / f"p2_importancia_{name}.csv"
+                importance.to_csv(importance_path, index=False)
+                artifacts["importancia"] = importance_path
             run_id = log_p2_run(
                 run_name=f"P2-{name}-validacion",
                 run_type="model_selection_validation",
@@ -762,11 +614,19 @@ def run_command(
                 metrics={k: row[k] for k in row.index if k != "modelo"},
                 quality=quality,
                 artifacts=artifacts,
-                model=context["models"].get(name),
+                model=model,
                 temporal_holdout=False,
-                input_hashes=hashes,
+                manifest=manifest,
             )
             logger.info("Run de validacion {} registrado: {}", name, run_id)
+
+        model_obj_final = model_obj
+        artifacts = dict(shared)
+        if model_obj_final is not None:
+            importance = feature_importances(model_obj_final, features, context["labels"], context["masks"])
+            importance_path = output_dir / f"p2_importancia_{final_model}.csv"
+            importance.to_csv(importance_path, index=False)
+            artifacts["importancia"] = importance_path
         run_id = log_p2_run(
             run_name=f"P2-{final_model}-final",
             run_type="final_test",
@@ -776,9 +636,9 @@ def run_command(
             metrics={k: float(v) for k, v in final_metrics.items() if k != "modelo"},
             quality=quality,
             artifacts=artifacts,
-            model=model_obj,
+            model=model_obj_final,
             temporal_holdout=True,
-            input_hashes=hashes,
+            manifest=manifest,
         )
         logger.success("Run final P2 ({}) registrado en MLflow: {}", final_model, run_id)
     logger.success("Artefactos P2 guardados en {}", output_dir)

@@ -256,3 +256,158 @@ def main(
 
 if __name__ == "__main__":
     app()
+
+
+# ---------------------------------------------------------------------------
+# P2: riesgo de que una estacion quede vacia o llena en las siguientes H horas.
+# ---------------------------------------------------------------------------
+
+
+def build_p2_hourly_flows(trips: pd.DataFrame) -> pd.DataFrame:
+    """Salidas y llegadas por estacion-hora a partir de viajes limpios.
+
+    ``trips`` debe traer ``origin_id``, ``destination_id``, ``start_time`` y
+    ``end_time`` tal como los produce ``dataset.py``. Las llegadas usan la hora
+    de fin del viaje, por eso el inventario se actualiza al terminar el viaje.
+    """
+    required = {"origin_id", "destination_id", "start_time", "end_time"}
+    if not required.issubset(trips.columns):
+        raise ValueError(f"Faltan columnas de viajes: {sorted(required - set(trips.columns))}")
+    departures = (
+        trips.assign(
+            est=trips["origin_id"].astype("int64"),
+            ts=pd.to_datetime(trips["start_time"]).dt.floor("h"),
+        )
+        .groupby(["est", "ts"])
+        .size()
+        .rename("salidas")
+    )
+    arrivals = (
+        trips.assign(
+            est=trips["destination_id"].astype("int64"),
+            ts=pd.to_datetime(trips["end_time"]).dt.floor("h"),
+        )
+        .groupby(["est", "ts"])
+        .size()
+        .rename("llegadas")
+    )
+    flows = pd.concat([departures, arrivals], axis=1).fillna(0).astype("int64")
+    return flows.reset_index()
+
+
+def build_p2_station_day_panel(
+    flows: pd.DataFrame, capacities: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Panel estacion-hora con flujo acumulado, rango factible y etiqueta de riesgo.
+
+    Para cada estacion-dia se calcula el flujo neto acumulado ``F(t)`` y el rango
+    de inventario inicial ``[L, U]`` que mantiene el inventario entre 0 y la
+    capacidad ``C``: ``L = max(0, -min F)``, ``U = min(C, C - max F)``. El dia es
+    factible si ``L <= U``. Los dias infactibles se descartan porque con solo
+    viajes no hay un inventario consistente.
+
+    Devuelve ``(panel, bounds)``: ``panel`` contiene solo dias factibles con
+    capacidad positiva; ``bounds`` resume cada estacion-dia (incluidos los
+    infactibles) para el registro de calidad.
+    """
+    if not {"est", "capacidad"}.issubset(capacities.columns):
+        raise ValueError("capacities debe contener las columnas est y capacidad")
+    if flows.empty:
+        raise ValueError("No hay flujos para construir el panel de P2")
+    stations = capacities.loc[capacities["capacidad"] > 0, ["est", "capacidad"]]
+    grid_hours = pd.date_range(
+        flows["ts"].min().normalize(),
+        flows["ts"].max().floor("D") + pd.Timedelta(hours=23),
+        freq="h",
+    )
+    full_index = pd.MultiIndex.from_product([stations["est"], grid_hours], names=["est", "ts"])
+    panel = (
+        flows.set_index(["est", "ts"])
+        .reindex(full_index, fill_value=0)
+        .reset_index()
+        .merge(stations, on="est", how="inner")
+    )
+    panel["neto"] = panel["llegadas"] - panel["salidas"]
+    panel["day"] = panel["ts"].dt.normalize()
+    panel = panel.sort_values(["est", "ts"]).reset_index(drop=True)
+    panel["flujo_acumulado"] = panel.groupby(["est", "day"])["neto"].cumsum()
+
+    bounds = panel.groupby(["est", "day"], sort=False).agg(
+        max_f=("flujo_acumulado", "max"),
+        min_f=("flujo_acumulado", "min"),
+        capacidad=("capacidad", "first"),
+    )
+    bounds["max_f"] = bounds["max_f"].clip(lower=0)
+    bounds["min_f"] = bounds["min_f"].clip(upper=0)
+    bounds["lower"] = np.maximum(0, -bounds["min_f"])
+    bounds["upper"] = np.minimum(bounds["capacidad"], bounds["capacidad"] - bounds["max_f"])
+    bounds["factible"] = bounds["lower"] <= bounds["upper"]
+    bounds["s0"] = (bounds["lower"] + bounds["upper"]) / 2
+    bounds = bounds.reset_index()
+
+    panel = panel.merge(bounds[["est", "day", "factible", "s0"]], on=["est", "day"], how="left")
+    panel["factible"] = panel["factible"].eq(True)
+    panel = panel.loc[panel["factible"]].copy()
+    panel["inventario"] = panel["s0"] + panel["flujo_acumulado"]
+    panel["label"] = p2_risk_labels(panel, config.P2_HORIZON_HOURS)
+    return panel.reset_index(drop=True), bounds
+
+
+def p2_risk_labels(panel: pd.DataFrame, horizon: int) -> np.ndarray:
+    """Etiqueta ``r(s,t)=1`` si el inventario estimado toca 0 o C en las siguientes H horas.
+
+    La etiqueta puede mirar al futuro porque es la respuesta que se quiere
+    predecir; las features nunca lo hacen. Las ventanas no cruzan de dia, porque
+    el inventario inicial ``s0`` se estima por dia de servicio.
+    """
+    empty = (panel["inventario"] <= 0).to_numpy()
+    full = (panel["inventario"] >= panel["capacidad"]).to_numpy()
+    risk = (empty | full).astype("int64")
+    frame = pd.DataFrame(
+        {"est": panel["est"].to_numpy(), "day": panel["day"].to_numpy(), "risk": risk}
+    )
+    labels = np.zeros(len(panel), dtype="int64")
+    for step in range(1, horizon + 1):
+        future = frame.groupby(["est", "day"])["risk"].shift(-step)
+        labels = np.maximum(labels, future.fillna(0).to_numpy().astype("int64"))
+    return labels
+
+
+def build_p2_features(panel: pd.DataFrame) -> pd.DataFrame:
+    """Variables de P2 que solo usan informacion hasta el instante ``t``.
+
+    Incluye hora y calendario, capacidad, flujo acumulado ``F(t)`` y su proporcion
+    de la capacidad, llegadas y salidas de la ultima y las dos ultimas horas, y
+    salidas de la misma hora del dia anterior. Los rezagos se calculan con
+    ``shift`` hacia el pasado, por lo que ninguna columna mira a ``t+1`` o mas.
+    """
+    required = {"est", "ts", "day", "salidas", "llegadas", "capacidad", "flujo_acumulado"}
+    if not required.issubset(panel.columns):
+        raise ValueError(f"Faltan columnas del panel de P2: {sorted(required - set(panel.columns))}")
+    frame = panel[["est", "ts", "day", "salidas", "llegadas", "capacidad", "flujo_acumulado"]].copy()
+    grouped = frame.groupby("est", sort=False)
+    frame["hora"] = frame["ts"].dt.hour
+    frame["dia_semana"] = frame["ts"].dt.dayofweek
+    frame["fin_de_semana"] = (frame["dia_semana"] >= 5).astype("int64")
+    frame["flujo_acumulado_sobre_c"] = frame["flujo_acumulado"] / frame["capacidad"]
+    frame["llegadas_1h"] = frame["llegadas"]
+    frame["salidas_1h"] = frame["salidas"]
+    frame["llegadas_2h"] = frame["llegadas"] + grouped["llegadas"].shift(1).fillna(0)
+    frame["salidas_2h"] = frame["salidas"] + grouped["salidas"].shift(1).fillna(0)
+    frame["salidas_misma_hora_ayer"] = grouped["salidas"].shift(24).fillna(0)
+    return frame.reset_index(drop=True)
+
+
+P2_FEATURE_COLUMNS = (
+    "hora",
+    "dia_semana",
+    "fin_de_semana",
+    "capacidad",
+    "flujo_acumulado",
+    "flujo_acumulado_sobre_c",
+    "llegadas_1h",
+    "salidas_1h",
+    "llegadas_2h",
+    "salidas_2h",
+    "salidas_misma_hora_ayer",
+)
