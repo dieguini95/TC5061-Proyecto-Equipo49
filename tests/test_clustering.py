@@ -322,8 +322,7 @@ def test_mlflow_logs_metadata_metrics_and_artifacts_in_tmp_path(tmp_path, monkey
     final_metrics = metrics.loc[metrics["k"] == 3].iloc[0]
     input_path = tmp_path / "input.csv"
     sample_stations().to_csv(input_path, index=False)
-    tracking_uri = (tmp_path / "tracking").as_uri()
-    monkeypatch.setenv("MLFLOW_ALLOW_FILE_STORE", "true")
+    tracking_uri = f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}"
 
     run_id = log_p3_run(
         pipeline=pipeline,
@@ -354,4 +353,4 @@ def test_mlflow_logs_metadata_metrics_and_artifacts_in_tmp_path(tmp_path, monkey
     artifact_names = {artifact.path for artifact in client.list_artifacts(run_id)}
     assert set(ARTIFACT_NAMES).issubset(artifact_names)
     assert run_id
-    assert (tmp_path / "tracking").exists()
+    assert (tmp_path / "mlflow.db").exists()

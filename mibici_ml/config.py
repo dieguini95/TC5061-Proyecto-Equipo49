@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -57,7 +58,12 @@ TEST_END = "2026-09-30"  # prueba: sep-26, se usa una sola vez
 # PROVISIONAL: ajustar tras los primeros runs de MLflow (paso 6).
 RANDOM_SEED = 42
 EXPERIMENT_NAME = "mibici-equipo49"
-MLFLOW_TRACKING_URI = MLRUNS_DIR.as_uri()
+# Backend SQLite local. Se puede sobrescribir con la variable de entorno
+# MLFLOW_TRACKING_URI (p. ej. apuntando a un servidor `mlflow server`).
+MLFLOW_DB_PATH = PROJ_ROOT / "mlflow.db"
+MLFLOW_TRACKING_URI = os.environ.get(
+    "MLFLOW_TRACKING_URI", f"sqlite:///{MLFLOW_DB_PATH.as_posix()}"
+)
 
 # Validacion cruzada dentro de entrenamiento (sin shuffle).
 CV_N_SPLITS = 5
@@ -109,6 +115,16 @@ P2_PANEL_PATH = PROCESSED_DATA_DIR / "p2_station_hour.parquet"
 P2_METRICS_PATH = TABLES_DIR / "p2_metrics.csv"
 P2_RUNS_PATH = TABLES_DIR / "p2_runs.json"
 P2_FIGURES = {"pr_curve": FIGURES_DIR / "P2_pr_curve.png"}
+# Grid de busqueda anidada (solo validacion). PROVISIONAL: ajustar con el equipo.
+P2_SEARCH_GRID = {
+    "logistica": {"C": (0.1, 1.0, 10.0)},
+    "hist_gb": {
+        "learning_rate": (0.05, 0.1),
+        "max_iter": (100, 300),
+        "max_leaf_nodes": (15, 31),
+    },
+}
+P2_REGISTERED_MODEL_PREFIX = "mibici-equipo49-p2-riesgo"
 
 # ---------------------------------------------------------------------------
 # P3: clustering de estaciones por perfil de uso

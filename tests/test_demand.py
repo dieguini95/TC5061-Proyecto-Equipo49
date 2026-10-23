@@ -86,7 +86,6 @@ def test_input_hash_rejects_tampered_processed_data(tmp_path, monkeypatch):
 
 
 def test_mlflow_contains_metrics_tags_artifacts_and_exact_source(tmp_path, monkeypatch):
-    monkeypatch.setenv("MLFLOW_ALLOW_FILE_STORE", "true")
     monkeypatch.setattr(demand.tempfile, "tempdir", str(tmp_path))
     import mlflow
 
@@ -120,7 +119,7 @@ def test_mlflow_contains_metrics_tags_artifacts_and_exact_source(tmp_path, monke
         for model in demand.config.P1_MODEL_NAMES
         for split in ("val", "test")
     ]
-    uri = (tmp_path / "mlruns").as_uri()
+    uri = f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}"
     runs = demand.log_runs(
         pd.DataFrame(rows),
         {"data_version": "fixture-v1"},
@@ -164,12 +163,12 @@ def test_invalid_forecast_fails_before_reading_manifest(tmp_path, monkeypatch):
         demand, "verify_inputs", lambda *args: pytest.fail("Must validate forecast before data")
     )
     with pytest.raises(ValueError, match="24 h"):
-        demand.main(tmp_path / "missing.json", False, (tmp_path / "mlruns").as_uri())
+        demand.main(tmp_path / "missing.json", False, f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}")
 
 
 def test_invalid_forecast_fails_before_creating_tracking_store(tmp_path, monkeypatch):
     monkeypatch.setattr(demand.config, "P1_FORECAST_ORIGIN_HOUR", 6)
-    store = tmp_path / "mlruns"
+    store = tmp_path / "mlflow.db"
     with pytest.raises(ValueError, match="24 h"):
-        demand.log_runs(pd.DataFrame(), {}, {}, "mean_4weeks", store.as_uri())
+        demand.log_runs(pd.DataFrame(), {}, {}, "mean_4weeks", f"sqlite:///{store.as_posix()}")
     assert not store.exists()

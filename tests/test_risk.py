@@ -312,7 +312,7 @@ def test_station_hash_mismatch_is_recorded_not_fatal(tmp_path, monkeypatch):
 
 
 def test_log_p2_run_writes_tags_metrics_and_manifest_artifact(tmp_path):
-    tracking_uri = (tmp_path / "mlruns").as_uri()
+    tracking_uri = f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}"
     artifact = tmp_path / "metricas.csv"
     artifact.write_text("a\n1\n", encoding="utf-8")
     quality = pd.DataFrame(
