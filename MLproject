@@ -1,0 +1,31 @@
+name: mibici-equipo49
+
+# MLflow sustituye {parametro} con str.format (no Jinja). Por eso los comandos son
+# planos: la logica de "parametro vacio" vive en los modulos de Python.
+#
+# Los valores por defecto de rutas, ventana, semilla, experimento y URI de tracking
+# estan en mibici_ml/config.py y no se repiten aqui. Un parametro vacio = config.py.
+python_env: python_env.yaml
+
+entry_points:
+  ingest:
+    parameters:
+      start_month: {type: string, default: "", description: "Primer mes AAAA-MM. Vacio = config.START_MONTH."}
+      end_month: {type: string, default: "", description: "Ultimo mes AAAA-MM. Vacio = config.END_MONTH."}
+      source_dir: {type: string, default: "", description: "Carpeta con CSV ya descargados. Vacio = descargar."}
+      refresh: {type: string, default: "false", description: "true para descargar y aceptar nuevos hashes."}
+    command: "python -m mibici_ml.dataset ingest --start-month {start_month} --end-month {end_month} --source-dir {source_dir} --refresh {refresh}"
+
+  train:
+    parameters:
+      question: {type: string, description: "Pregunta: p1, p2 o p3."}
+      model: {type: string, default: "", description: "P2: logistica o hist_gb."}
+      final_k: {type: string, default: "", description: "P3: k final elegido tras evaluar (obligatorio para p3)."}
+      output_dir: {type: string, default: "reports/tables", description: "Directorio de artefactos del run."}
+      with_mlflow: {type: string, default: "true", description: "true o false: registrar en MLflow."}
+    command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow}"
+
+  search:
+    # Busqueda anidada de P2: un run padre y un hijo por combinacion. Solo validacion.
+    parameters: {}
+    command: "python -m mibici_ml.modeling.search"

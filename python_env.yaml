@@ -1,0 +1,6 @@
+# Entorno de MLflow Projects. Versiones fijas tomadas de requirements.txt (Python 3.12).
+python: "3.12.13"
+build_dependencies:
+  - pip
+dependencies:
+  - -r requirements.txt
