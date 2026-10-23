@@ -195,10 +195,10 @@ Comandos (desde la raíz del proyecto, después de la ingesta de `dataset.py`):
 
 ```bash
 # 1. Compara los 4 modelos solo en validación (no abre la prueba)
-python -m mibici_ml.modeling.risk evaluate --output-dir reports/tables
+python -m mibici_ml.modeling.risk evaluate --output-dir /tmp/mibici-p2-evaluate
 
 # 2. Registra 4 runs de validación y 1 run final con prueba del modelo elegido
-python -m mibici_ml.modeling.risk run --output-dir reports/tables \
+python -m mibici_ml.modeling.risk run --output-dir /tmp/mibici-p2-run \
   --final-model hist_gb --with-mlflow
 ```
 

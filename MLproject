@@ -21,7 +21,7 @@ entry_points:
       question: {type: string, description: "Pregunta: p1, p2 o p3."}
       model: {type: string, default: "", description: "P2: logistica o hist_gb."}
       final_k: {type: string, default: "", description: "P3: k final elegido tras evaluar (obligatorio para p3)."}
-      output_dir: {type: string, default: "reports/tables", description: "Directorio de artefactos del run."}
+      output_dir: {type: string, default: "/tmp/mibici-runs", description: "Directorio de artefactos del run. Por defecto temporal para no sobrescribir reports/tables versionado."}
       with_mlflow: {type: string, default: "true", description: "true o false: registrar en MLflow."}
     command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow}"
 

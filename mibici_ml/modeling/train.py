@@ -56,9 +56,9 @@ def main(
     model: Annotated[
         str, typer.Option(help="Modelo final de P2: logistica o hist_gb. Vacio en p1 y p3.")
     ] = "",
-    output_dir: Annotated[Path, typer.Option(help="Directorio de artefactos del run.")] = (
-        config.PROJ_ROOT / "reports" / "tables"
-    ),
+    output_dir: Annotated[
+        Path, typer.Option(help="Directorio de artefactos del run (no usar reports/tables).")
+    ] = Path("/tmp/mibici-runs"),
     final_k: Annotated[
         str, typer.Option(help="k final de P3 (obligatorio para p3). Vacio si no aplica.")
     ] = "",
