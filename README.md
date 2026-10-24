@@ -271,6 +271,11 @@ Desde la raíz del repositorio:
 # Ingesta reproducible (descarga o reutiliza los CSV, escribe Parquet y el manifiesto)
 mlflow run . -e ingest
 
+# Champion de P2 (features v2, hiperparametros del ganador de la busqueda).
+# Los hiperparametros van como clave=valor separados por ';' (sin espacios ni comillas).
+P2_FEATURE_SET=v2 mlflow run . -e train -P question=p2 -P model=hist_gb \
+  -P tuned_json=learning_rate=0.03\;max_iter=600\;max_leaf_nodes=15\;min_samples_leaf=100
+
 # Entrenamiento por pregunta: question = p1 | p2 | p3
 mlflow run . -e train -P question=p2 -P model=hist_gb
 mlflow run . -e train -P question=p1
@@ -308,6 +313,16 @@ Cargar el modelo por alias, sin depender de un número de versión:
 ```python
 import mlflow.sklearn
 model = mlflow.sklearn.load_model("models:/mibici-equipo49-p2-riesgo-hist_gb@champion")
+```
+
+**Contrato de puntuación de P2.** Un champion de riesgo se usa con `predict_proba` y el umbral
+fijado en validación, no con `predict`. `pyfunc.predict` devuelve la clase 0/1 con corte 0.5, que
+para un evento raro casi siempre da 0. El umbral del champion está en la métrica `val_threshold`
+del run de origen (0.2002). Las columnas de entrada deben ser `float` (la firma las declara así).
+
+```python
+proba = model.predict_proba(X[feature_columns].astype(float).to_numpy())[:, 1]
+riesgo = proba >= 0.200205  # umbral de validacion del run
 ```
 
 Cada versión conserva su **linaje**: el run de origen (parámetros, métricas, etiquetas
