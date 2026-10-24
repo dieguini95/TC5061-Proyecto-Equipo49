@@ -150,8 +150,8 @@ patrones horarios por estación y no sustituye el pipeline reproducible desde da
   ceros por la mediana de capacidades estrictamente positivas del archivo leído. La columna
   `capacidad_imputada` identifica esas filas. Es una decisión metodológica provisional; la ingesta
   reproducible deberá investigar la causa de esos ceros.
-- **Evaluación:** comparar `k=3..8` con inertia, silhouette, Calinski-Harabasz,
-  Davies-Bouldin y tamaños de cluster. La herramienta no selecciona `final_k`.
+- **Evaluación histórica:** comparar `k=3..8` con inertia, silhouette, Calinski-Harabasz,
+  Davies-Bouldin y tamaños de cluster. `cluster evaluate` no selecciona `final_k`.
 
 Evaluar candidatos sin MLflow:
 
@@ -172,6 +172,75 @@ El baseline produce `p3_metricas_por_k.csv`, `p3_comparacion_k.png`, `p3_asignac
 `p3_perfiles_cluster.csv`, `p3_perfiles_cluster.png`, `p3_mapa_clusters.png` y
 `p3_calidad_datos.csv`. El alcance es exploratorio: no hay perfiles horarios por estación, holdout
 temporal ni validación de producción. Deberá integrarse posteriormente con la ingesta reproducible.
+
+### Tracking avanzado y Registry P3 (pendiente de ejecución manual)
+
+El flujo `search_p3` mantiene **k=5 como baseline histórico** y compara los candidatos **k=3, 4, 6, 7 y 8**.
+Todos usan el mismo CSV, SHA-256, tres features, mediana positiva para capacidad cero, `StandardScaler`,
+semilla base y `n_init=10`. Crea un run padre coordinador `P3-kmeans-nested-search` y seis hijos nested:
+`P3-kmeans-k5-baseline` más `P3-kmeans-k<K>-candidate` para los cinco candidatos. Baseline e hijos
+comparten parámetros, `log_input`, firma, artefactos y métricas sin prefijo; el padre registra la
+comparación y el resultado de selección. Los hijos comparten los tags `team`, `question`, `model_family`,
+`stage_of_work`, `git_commit`, `parent_search`, `data_scope`, `temporal_holdout`, `input_sha256` y
+`data_version`; `candidate_k` identifica candidatos y `baseline_k` identifica el baseline.
+
+La selección de recomendación compara el baseline k=5 y los cinco candidatos; exige al menos 2 estaciones
+por cluster y ordena por silhouette descendente, Davies-Bouldin ascendente y menor k. El resultado separa
+el mejor candidato, la recomendación global y la selección efectiva. Antes de registrar, Daniel debe revisar
+la comparación y decidir explícitamente `selected_k`; el valor de la opción manual prevalece sobre la
+recomendación. La recomendación no asigna alias automáticamente. `reports/tables/estaciones_resumen.csv` tiene
+versión propia `sha256:<hash completo del CSV>`; no se presenta el manifiesto P1/P2 como versión directa.
+El manifiesto P3 incluye conteo, columnas, periodo, hash y limitaciones, nunca filas de estaciones.
+`mlflow.log_input` registra solo las tres features crudas (sin nombre, coordenadas ni IDs). MLflow limita
+el digest del dataset a 36 caracteres, por lo que se usa el prefijo de ese SHA-256; el hash completo queda
+en el manifiesto, tags y parámetros.
+
+Cada hijo guarda bajo `plots/` mapa y perfiles agregados; bajo `data/`, manifiesto, métricas, perfiles
+y calidad; bajo `config/`, configuración reproducible; y bajo `model`, un pyfunc firmado. El contrato
+de inferencia recibe únicamente `capacidad`, `salidas_12m` y `llegadas_12m`; el modelo valida valores,
+imputa capacidad cero usando la mediana aprendida y retorna el cluster. El input example es sintético
+y contiene las mismas tres columnas. El CSV fuente completo y las asignaciones por estación no se
+registran como artefactos.
+
+Desde la raíz y con el servidor de tracking disponible, Daniel ejecutará manualmente (aún pendiente;
+estos comandos no fueron ejecutados al preparar el código):
+
+```bash
+# Comparar k=5 con los cinco candidatos; no registra ni asigna alias.
+mlflow run . -e search_p3
+
+# Solo después de revisar la comparación y decidir K, repetir la búsqueda para
+# registrar esa selección, validar su inferencia y asignar champion.
+# register_best=true registra la versión, valida su inferencia y solo entonces asigna champion.
+mlflow run . -e search_p3 -P register_best=true -P selected_k=5
+```
+
+En el segundo comando, sustituir `5` por el K elegido tras revisar la primera búsqueda. El código
+rechaza `register_best=true` si no se especifica explícitamente `selected_k`.
+
+El nombre fijo es `mibici-equipo49-p3-grupos`; el alias de producción es `champion`.
+El flujo asigna únicamente `champion`. No crea ni asigna `challenger`; si el equipo lo requiere, puede
+asignarse manualmente de forma deliberada con
+`assign_champion_alias(champion_alias="challenger", version="VERSION")`, sustituyendo `VERSION`
+por la versión revisada.
+Para cargar y probar el alias
+después de una ejecución real:
+
+```python
+from mibici_ml.modeling.p3_model import p3_input_example
+from mibici_ml.modeling.registry_p3 import validate_champion_inference
+
+predictions = validate_champion_inference(p3_input_example(), selected_k=5)
+```
+
+Sustituir `5` por el K que fue registrado como champion.
+
+El código carga la versión por URI, prueba predicción finita con etiquetas enteras en el rango esperado
+y solo después mueve el alias. Para rollback, reasignar `champion` a la versión anterior con
+`assign_champion_alias(version="VERSION_ANTERIOR")`, sustituyendo el texto por la versión concreta;
+no se borran versiones. No hay holdout temporal,
+los agregados no son perfiles horarios y la imputación de capacidad cero sigue siendo provisional.
+Los runs, versiones, métricas y alias reales quedan pendientes de la ejecución y revisión de Daniel.
 
 ### Modelo P2 de riesgo de estación
 
@@ -278,10 +347,13 @@ mlflow run . -e train -P question=p3 -P final_k=FINAL_K
 
 # Busqueda anidada de hiperparametros de P2 (run padre + un run hijo por combinacion)
 mlflow run . -e search
+
+# Busqueda anidada P3; register_best es false por defecto
+mlflow run . -e search_p3
 ```
 
-Los parámetros vacíos o no declarados usan el valor de `config.py`. `search` y `train` solo usan
-la partición de validación para elegir; la prueba se abre una sola vez por pregunta.
+Los parámetros vacíos o no declarados usan el valor de `config.py`. `search` y `train` de P1/P2 usan
+la partición de validación para elegir; P3 es clustering exploratorio, sin holdout temporal.
 
 ### 3. Esquema del Model Registry
 
@@ -293,7 +365,7 @@ Cada modelo final se registra con el nombre `mibici-equipo49-<pregunta>-<tema>` 
 | `mibici-equipo49-p2-riesgo-hist_gb` | P2 | Registrado por `train -P question=p2` con `--final-model hist_gb` | `champion` | `challenger` (opcional) |
 | `mibici-equipo49-p2-riesgo-logistica` | P2 | Registrado si se entrena con `--final-model logistica` | `champion` si gana en validación | `challenger` |
 | `mibici-equipo49-p1-demanda` | P1 | Pendiente: P1 es solo baselines fijados, sin modelo registrado | n/a | n/a |
-| `mibici-equipo49-p3-grupos` | P3 | Pendiente: P3 es exploratorio, sin modelo registrado | n/a | n/a |
+| `mibici-equipo49-p3-grupos` | P3 | Código listo; registro real pendiente de ejecución manual | `champion` (pendiente) | `challenger` (opcional) |
 
 Asignar el alias después de revisar la validación (ejemplo P2):
 
