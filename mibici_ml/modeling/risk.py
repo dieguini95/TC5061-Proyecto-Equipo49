@@ -449,6 +449,59 @@ def get_git_commit_and_dirty() -> tuple[str, bool]:
     return commit, dirty
 
 
+MODEL_FAMILY = {
+    "mayoritaria": "baseline",
+    "persistencia": "baseline",
+    "logistica": "linear",
+    "hist_gb": "gradient_boosting",
+}
+
+
+def _stage_of_work(run_type: str) -> str:
+    """Etapa del trabajo para filtrar en la UI: baseline, search, candidate o final."""
+    return {
+        "search_candidate": "search",
+        "model_selection_validation": "candidate",
+        "final_test": "final",
+    }.get(run_type, "baseline")
+
+
+def _signature_and_example(
+    model: Any, features: pd.DataFrame | None
+) -> tuple[Any, pd.DataFrame | None]:
+    """Firma y ejemplo de entrada con las columnas reales de P2 (sin ids ni viajes).
+
+    Usa pocas filas de la particion de validacion; si no hay features, no hay firma.
+    """
+    if features is None or features.empty:
+        return None, None
+    from mlflow.models import infer_signature
+
+    example = features[list(FEATURE_COLUMNS)].head(5).astype(float).reset_index(drop=True)
+    proba = _positive_proba(model, example.to_numpy())
+    signature = infer_signature(example, pd.DataFrame({"riesgo_prob": proba}))
+    return signature, example
+
+
+def _plot_confusion(
+    labels: np.ndarray, scores: np.ndarray, threshold: float, output_path: Path
+) -> Path:
+    """Matriz de confusion con el umbral fijado en validacion."""
+    from sklearn.metrics import ConfusionMatrixDisplay
+
+    predictions = (scores >= threshold).astype("int64")
+    figure, axis = plt.subplots(figsize=(4.5, 4))
+    ConfusionMatrixDisplay.from_predictions(
+        labels, predictions, display_labels=["sin riesgo", "riesgo"], ax=axis, colorbar=False
+    )
+    axis.set_title(f"Matriz de confusion (umbral {threshold:.3f})")
+    figure.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=200)
+    plt.close(figure)
+    return output_path
+
+
 def log_p2_run(
     *,
     run_name: str,
@@ -466,12 +519,19 @@ def log_p2_run(
     tracking_uri: str = MLFLOW_TRACKING_URI,
     registered_model_name: str | None = None,
     nested: bool = False,
+    features: pd.DataFrame | None = None,
+    train_frame: pd.DataFrame | None = None,
 ) -> str:
     """Registra un run de P2 en MLflow y regresa su ID.
 
-    Etiquetas: equipo, pregunta, tipo de run, commit y estado del arbol. Parametros:
-    ventanas, semilla, horizonte y ``data_version``. Sin datos a nivel viaje ni
-    identificadores de usuario.
+    Etiquetas: equipo, pregunta, tipo de run, etapa, familia de modelo, commit y estado
+    del arbol. Parametros: ventanas, semilla, horizonte y ``data_version``. Sin datos a
+    nivel viaje ni identificadores de usuario.
+
+    Artefactos por subcarpeta: ``plots/`` (curvas y matriz de confusion), ``data/``
+    (manifiesto y calidad) y ``config/`` (parametros efectivos). El modelo se guarda con
+    firma y ``input_example``. ``train_frame`` (opcional) se registra con
+    ``mlflow.log_input`` solo como metadatos del conjunto de entrenamiento.
 
     ``nested`` anida el run bajo el run activo (busqueda). ``registered_model_name``
     registra el modelo en el Model Registry (solo para el modelo final).
@@ -504,6 +564,8 @@ def log_p2_run(
         "team": "equipo49",
         "question": "P2",
         "run_type": run_type,
+        "model_family": MODEL_FAMILY.get(model_name, "other"),
+        "stage_of_work": _stage_of_work(run_type),
         "data_scope": "dataset_py_processed_12m",
         "temporal_holdout": str(temporal_holdout).lower(),
         "limitation": "approx_inventory_from_trips_only",
@@ -530,15 +592,34 @@ def log_p2_run(
             mlflow.log_params({k: str(v) for k, v in params.items()})
             mlflow.log_metrics({k: float(v) for k, v in metrics.items() if np.isfinite(v)})
             mlflow.set_tags(tags)
-            mlflow.log_artifact(str(manifest_copy), artifact_path="reproducibility")
+            # Subcarpetas: data/ (manifiesto y calidad), config/ (parametros), plots/ (figuras).
+            mlflow.log_artifact(str(manifest_copy), artifact_path="data")
+            mlflow.log_text(quality.to_csv(index=False), artifact_file="data/p2_calidad_datos.csv")
+            mlflow.log_dict(
+                {"params": params, "metrics": metrics, "tags": tags},
+                artifact_file="config/run_config.json",
+            )
             for artifact_path in artifacts.values():
-                mlflow.log_artifact(str(artifact_path))
+                subfolder = "plots" if Path(artifact_path).suffix == ".png" else "data"
+                if Path(artifact_path).name.startswith("p2_importancia"):
+                    subfolder = "plots"
+                mlflow.log_artifact(str(artifact_path), artifact_path=subfolder)
+            if train_frame is not None and not train_frame.empty:
+                from mlflow.data import from_pandas
+
+                dataset = from_pandas(
+                    train_frame, source=f"mibici-p2-{config.TRAIN_START}-{config.TRAIN_END}"
+                )
+                mlflow.log_input(dataset, context="training")
             if model is not None:
+                signature, example = _signature_and_example(model, features)
                 mlflow_sklearn.log_model(
                     model,
                     name=f"p2_{model_name}",
                     skops_trusted_types=SKOPS_TRUSTED_TYPES,
                     registered_model_name=registered_model_name,
+                    signature=signature,
+                    input_example=example,
                 )
             return run.info.run_id
 
@@ -587,6 +668,41 @@ def evaluate_command(
 
 
 @app.command("run")
+def _train_metadata(features: pd.DataFrame, masks: dict[str, np.ndarray]) -> pd.DataFrame:
+    """Metadatos del conjunto de entrenamiento para ``mlflow.log_input``.
+
+    Solo columnas de features agregadas por tamano y rango (sin filas por viaje ni ids
+    de estacion). Sirve como huella del conjunto, no como copia de los datos.
+    """
+    train = features.loc[masks["train"], list(FEATURE_COLUMNS)].astype(float)
+    summary = train.describe().T[["mean", "std", "min", "max"]].reset_index(names="feature")
+    return summary
+
+
+def _confusion_for(
+    name: str,
+    panel: pd.DataFrame,
+    features: pd.DataFrame,
+    context: dict[str, Any],
+    threshold: float,
+    output_dir: Path,
+    split: str,
+) -> Path:
+    """Matriz de confusion del modelo en la particion indicada con el umbral de validacion."""
+    labels = context["labels"]
+    masks = context["masks"]
+    if name == "persistencia":
+        scores = persistence_scores(panel, labels)[masks[split]]
+    elif name == "mayoritaria":
+        scores = np.zeros(int(masks[split].sum()))
+    else:
+        x_split = features[list(FEATURE_COLUMNS)].to_numpy(dtype=float)[masks[split]]
+        scores = _positive_proba(context["models"][name], x_split)
+    return _plot_confusion(
+        labels[masks[split]], scores, threshold, output_dir / f"p2_matriz_{name}_{split}.png"
+    )
+
+
 def run_command(
     *,
     manifest_path: MANIFEST_OPTION = DATA_MANIFEST_PATH,
@@ -632,6 +748,9 @@ def run_command(
                 importance_path = output_dir / f"p2_importancia_{name}.csv"
                 importance.to_csv(importance_path, index=False)
                 artifacts["importancia"] = importance_path
+            artifacts["matriz_confusion"] = _confusion_for(
+                name, panel, features, context, float(row["val_threshold"]), output_dir, "val"
+            )
             run_id = log_p2_run(
                 run_name=f"P2-{name}-validacion",
                 run_type="model_selection_validation",
@@ -644,6 +763,8 @@ def run_command(
                 model=model,
                 temporal_holdout=False,
                 manifest=manifest,
+                features=features.loc[context["masks"]["val"]],
+                train_frame=_train_metadata(features, context["masks"]),
             )
             logger.info("Run de validacion {} registrado: {}", name, run_id)
 
@@ -656,6 +777,9 @@ def run_command(
             importance_path = output_dir / f"p2_importancia_{final_model}.csv"
             importance.to_csv(importance_path, index=False)
             artifacts["importancia"] = importance_path
+        artifacts["matriz_confusion"] = _confusion_for(
+            final_model, panel, features, context, threshold, output_dir, "test"
+        )
         run_id = log_p2_run(
             run_name=f"P2-{final_model}-final",
             run_type="final_test",
@@ -669,6 +793,8 @@ def run_command(
             temporal_holdout=True,
             manifest=manifest,
             registered_model_name=f"{config.P2_REGISTERED_MODEL_PREFIX}-{final_model}",
+            features=features.loc[context["masks"]["test"]],
+            train_frame=_train_metadata(features, context["masks"]),
         )
         logger.success("Run final P2 ({}) registrado en MLflow: {}", final_model, run_id)
     logger.success("Artefactos P2 guardados en {}", output_dir)

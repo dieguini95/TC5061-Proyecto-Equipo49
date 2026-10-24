@@ -116,6 +116,7 @@ def search_command(
                     manifest=manifest,
                     tracking_uri=tracking_uri,
                     nested=True,
+                    features=features.loc[masks["val"]],
                 )
                 logger.info(
                     "Candidato {} {} -> val_pr_auc={:.4f}",
