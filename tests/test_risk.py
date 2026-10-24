@@ -10,6 +10,7 @@ import pytest
 
 from mibici_ml.config import P2_HORIZON_HOURS
 from mibici_ml.features import (
+    P2_FEATURE_COLUMNS,
     build_p2_features,
     build_p2_hourly_flows,
     build_p2_station_day_panel,
@@ -84,6 +85,18 @@ def _write_manifest(root, *, trip_hash_ok: bool) -> tuple:
     manifest_path = root / "data_manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     return manifest_path, processed
+
+
+def _features_for_active_set(panel: pd.DataFrame) -> pd.DataFrame:
+    """Features como las arma el pipeline: v1, mas las columnas v2 si P2_FEATURE_SET=v2."""
+    from mibici_ml.features import P2_FEATURE_COLUMNS_V2, add_p2_v2_features
+
+    features = build_p2_features(panel)
+    if FEATURE_COLUMNS == P2_FEATURE_COLUMNS_V2:
+        v2 = add_p2_v2_features(panel)
+        extra = [c for c in P2_FEATURE_COLUMNS_V2 if c not in features.columns]
+        features = pd.concat([features, v2[extra].reset_index(drop=True)], axis=1)
+    return features
 
 
 def test_build_p2_hourly_flows_counts_departures_and_arrivals_by_hour():
@@ -193,14 +206,14 @@ def test_features_do_not_depend_on_future_rows():
     feats_b = build_p2_features(altered)
     cut = 20
     pd.testing.assert_frame_equal(
-        feats_a.loc[:cut, list(FEATURE_COLUMNS)].reset_index(drop=True),
-        feats_b.loc[:cut, list(FEATURE_COLUMNS)].reset_index(drop=True),
+        feats_a.loc[:cut, list(P2_FEATURE_COLUMNS)].reset_index(drop=True),
+        feats_b.loc[:cut, list(P2_FEATURE_COLUMNS)].reset_index(drop=True),
     )
 
 
 def test_feature_columns_match_declared_contract():
     feats = build_p2_features(_feature_panel())
-    assert set(FEATURE_COLUMNS).issubset(feats.columns)
+    assert set(P2_FEATURE_COLUMNS).issubset(feats.columns)
 
 
 def test_temporal_masks_are_disjoint_and_ordered():
@@ -277,7 +290,7 @@ def test_evaluate_all_runs_on_synthetic_panel_without_test_leak():
             "flujo_acumulado": 0.0,
         }
     )
-    features = build_p2_features(panel)
+    features = _features_for_active_set(panel)
     metrics, context, _ = evaluate_all(panel, features, random_seed=7)
     assert set(metrics["modelo"]) == {
         "mayoritaria",
@@ -413,6 +426,7 @@ def test_log_p2_run_logs_signature_input_and_plots_subfolder(tmp_path):
     assert model_info, "el modelo debe quedar guardado"
     loaded = mlflow.pyfunc.load_model(f"runs:/{run_id}/p2_hist_gb")
     assert loaded.metadata.signature is not None
+    # La firma refleja exactamente las columnas con que se entreno (set activo).
     assert list(loaded.metadata.signature.inputs.input_names()) == list(FEATURE_COLUMNS)
 
 
@@ -453,6 +467,16 @@ def test_feature_set_v1_is_default_and_unchanged():
 
     assert risk.FEATURE_SETS["v1"] == P2_FEATURE_COLUMNS
     assert len(P2_FEATURE_COLUMNS) == 11
+
+
+def test_parse_tuned_handles_numbers_and_empty_items():
+    from mibici_ml.modeling.risk import parse_tuned
+
+    assert parse_tuned("learning_rate=0.03;max_iter=600;;max_leaf_nodes=15") == {
+        "learning_rate": 0.03,
+        "max_iter": 600,
+        "max_leaf_nodes": 15,
+    }
 
 
 def test_risk_cli_registers_evaluate_and_run_commands():

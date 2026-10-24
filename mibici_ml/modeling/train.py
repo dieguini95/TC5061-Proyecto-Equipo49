@@ -64,7 +64,8 @@ def main(
     ] = "",
     with_mlflow: Annotated[str, typer.Option(help="true o false: registrar en MLflow.")] = "true",
     tuned_json: Annotated[
-        str, typer.Option(help="P2: hiperparametros del ganador de la busqueda (JSON).")
+        str,
+        typer.Option(help="P2: hiperparametros del ganador (clave=valor;clave=valor)."),
     ] = "",
 ) -> None:
     """Entrena o evalua la pregunta indicada y registra los runs en MLflow."""

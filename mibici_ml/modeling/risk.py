@@ -708,6 +708,31 @@ def evaluate_command(
     logger.success("Evaluacion P2 (solo validacion) guardada en {}", output_dir)
 
 
+def parse_tuned(text: str) -> dict[str, Any]:
+    """Convierte ``'learning_rate=0.03;max_iter=600'`` en un dict con tipos numericos.
+
+    Formato sin espacios ni comillas para pasarlo por ``mlflow run``. Los valores se
+    interpretan como int, float o cadena, en ese orden.
+    """
+    params: dict[str, Any] = {}
+    for item in text.split(";"):
+        item = item.strip()
+        if not item:
+            continue
+        if "=" not in item:
+            raise typer.BadParameter(f"Parametro mal formado: {item!r} (usa clave=valor).")
+        key, raw = item.split("=", 1)
+        value: Any = raw.strip()
+        for cast in (int, float):
+            try:
+                value = cast(value)
+                break
+            except ValueError:
+                continue
+        params[key.strip()] = value
+    return params
+
+
 def _train_metadata(features: pd.DataFrame, masks: dict[str, np.ndarray]) -> pd.DataFrame:
     """Metadatos del conjunto de entrenamiento para ``mlflow.log_input``.
 
@@ -757,15 +782,15 @@ def run_command(
     tuned_json: Annotated[
         str,
         typer.Option(
-            help="Hiperparametros del ganador de la busqueda, en JSON (p. ej. "
-            "'{\"learning_rate\": 0.03}'). Vacio = defaults de sklearn."
+            help="Hiperparametros del ganador como clave=valor separados por ';' "
+            "(p. ej. 'learning_rate=0.03;max_iter=600'). Vacio = defaults de sklearn."
         ),
     ] = "",
 ) -> None:
     """Registra 4 runs de validacion y 1 run final con metricas de prueba del modelo elegido."""
     if final_model not in CANDIDATE_NAMES:
         raise typer.BadParameter(f"--final-model debe ser uno de: {', '.join(CANDIDATE_NAMES)}.")
-    tuned = {final_model: json.loads(tuned_json)} if tuned_json.strip() else {}
+    tuned = {final_model: parse_tuned(tuned_json)} if tuned_json.strip() else {}
     panel, features, quality, manifest = _prepare(manifest_path, processed_dir)
     metrics, context, val_scores = evaluate_all(panel, features, random_seed, tuned=tuned)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -837,7 +862,9 @@ def run_command(
             params_extra={
                 "split_scope": "test_once",
                 "selected_on": "validation",
-                "tuned_hyperparams": json.dumps(tuned.get(final_model, {}), sort_keys=True),
+                "tuned_hyperparams": ";".join(
+                    f"{k}={v}" for k, v in sorted(tuned.get(final_model, {}).items())
+                ),
             },
             metrics={k: float(v) for k, v in final_metrics.items() if k != "modelo"},
             quality=quality,
