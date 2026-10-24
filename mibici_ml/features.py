@@ -402,6 +402,42 @@ def build_p2_features(panel: pd.DataFrame) -> pd.DataFrame:
     return frame.reset_index(drop=True)
 
 
+def add_p2_v2_features(panel_features: pd.DataFrame) -> pd.DataFrame:
+    """Features v2 de P2: estado observado hasta ``t`` (sin mirar a ``t+1`` o mas).
+
+    - ``riesgo_observado_h``: 1 si el inventario estimado en ``t`` ya estaba en 0 o en C.
+      Es el estado que hoy observa la persistencia, pero como variable del modelo.
+    - ``riesgo_observado_previo_h``: el mismo estado ``H`` horas antes de ``t``.
+    - ``tendencia_flujo_3h``: cambio de ``F(t)`` en las ultimas 3 horas, sobre capacidad.
+
+    ``inventario`` y ``capacidad`` vienen del panel; el inventario de ``t`` solo usa
+    flujos hasta ``t``, y los rezagos se calculan con ``shift`` hacia el pasado.
+    """
+    required = {"est", "day", "flujo_acumulado", "capacidad"}
+    if not required.issubset(panel_features.columns):
+        raise ValueError(
+            f"Faltan columnas para features v2: {sorted(required - set(panel_features.columns))}"
+        )
+    frame = panel_features.copy()
+    grouped = frame.groupby(["est", "day"], sort=False)
+    # Inventario estimado hasta t: rango inicial s0 mas el flujo acumulado observado.
+    inventory_now = frame["flujo_acumulado"]
+    if "inventario" in frame.columns:
+        inventory_now = frame["inventario"]
+    empty_or_full = ((inventory_now <= 0) | (inventory_now >= frame["capacidad"])).astype("int64")
+    frame["riesgo_observado_h"] = empty_or_full
+    frame["riesgo_observado_previo_h"] = (
+        frame.groupby(["est", "day"], sort=False)["riesgo_observado_h"]
+        .shift(config.P2_HORIZON_HOURS)
+        .fillna(0)
+        .astype("int64")
+    )
+    frame["tendencia_flujo_3h"] = (
+        frame["flujo_acumulado"] - grouped["flujo_acumulado"].shift(3).fillna(0)
+    ) / frame["capacidad"]
+    return frame
+
+
 P2_FEATURE_COLUMNS = (
     "hora",
     "dia_semana",
@@ -414,4 +450,10 @@ P2_FEATURE_COLUMNS = (
     "llegadas_2h",
     "salidas_2h",
     "salidas_misma_hora_ayer",
+)
+
+P2_FEATURE_COLUMNS_V2 = P2_FEATURE_COLUMNS + (
+    "riesgo_observado_h",
+    "riesgo_observado_previo_h",
+    "tendencia_flujo_3h",
 )
