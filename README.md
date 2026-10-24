@@ -183,6 +183,10 @@ comparten parámetros, `log_input`, firma, artefactos y métricas sin prefijo; e
 comparación y el resultado de selección. Los hijos comparten los tags `team`, `question`, `model_family`,
 `stage_of_work`, `git_commit`, `parent_search`, `data_scope`, `temporal_holdout`, `input_sha256` y
 `data_version`; `candidate_k` identifica candidatos y `baseline_k` identifica el baseline.
+Sin un run activo, el coordinador P3 es un run raíz. Si MLflow Projects proporciona un run wrapper activo
+o `MLFLOW_RUN_ID`, P3 crea un único coordinador nested bajo ese wrapper sin reutilizarlo ni finalizarlo.
+El wrapper puede estar en otro experimento; el coordinador y los seis runs P3 se crean explícitamente en
+`mibici-equipo49`, y los seis hijos quedan bajo el coordinador P3.
 
 La selección de recomendación compara el baseline k=5 y los cinco candidatos; exige al menos 2 estaciones
 por cluster y ordena por silhouette descendente, Davies-Bouldin ascendente y menor k. El resultado separa
@@ -207,12 +211,12 @@ estos comandos no fueron ejecutados al preparar el código):
 
 ```bash
 # Comparar k=5 con los cinco candidatos; no registra ni asigna alias.
-mlflow run . -e search_p3
+mlflow run . -e search_p3 --env-manager=local
 
 # Solo después de revisar la comparación y decidir K, repetir la búsqueda para
 # registrar esa selección, validar su inferencia y asignar champion.
 # register_best=true registra la versión, valida su inferencia y solo entonces asigna champion.
-mlflow run . -e search_p3 -P register_best=true -P selected_k=5
+mlflow run . -e search_p3 --env-manager=local -P register_best=true -P selected_k=5
 ```
 
 En el segundo comando, sustituir `5` por el K elegido tras revisar la primera búsqueda. El código
@@ -349,7 +353,7 @@ mlflow run . -e train -P question=p3 -P final_k=FINAL_K
 mlflow run . -e search
 
 # Busqueda anidada P3; register_best es false por defecto
-mlflow run . -e search_p3
+mlflow run . -e search_p3 --env-manager=local
 ```
 
 Los parámetros vacíos o no declarados usan el valor de `config.py`. `search` y `train` de P1/P2 usan

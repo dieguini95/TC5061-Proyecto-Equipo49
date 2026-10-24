@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
+from typer.testing import CliRunner
 
 from mibici_ml.config import (
     P3_BASELINE_K,
@@ -16,9 +17,12 @@ from mibici_ml.config import (
     P3_CHAMPION_ALIAS,
     P3_INPUT_PATH,
     P3_MODEL_FEATURES,
+    P3_N_INIT,
     P3_REGISTRY_MODEL_NAME,
+    RANDOM_SEED,
 )
 from mibici_ml.modeling import cluster
+from mibici_ml.modeling import search_p3
 from mibici_ml.modeling.p3_model import P3ClusterModel, log_p3_pyfunc_model, p3_input_example
 from mibici_ml.modeling.search_p3 import run_search, select_best_candidate
 
@@ -259,6 +263,210 @@ def test_nested_search_tracks_five_children_and_is_reproducible(tmp_path):
     assert comparison["is_baseline"].sum() == 1
     assert set(comparison["k"]) == {3, 4, 5, 6, 7, 8}
     assert set(comparison["run_id"]) == set(first.child_run_ids.values())
+    assert client.get_run(first.parent_run_id).info.status == "FINISHED"
+    assert all(
+        client.get_run(run_id).info.status == "FINISHED"
+        for run_id in first.child_run_ids.values()
+    )
+    assert mlflow.active_run() is None
+
+
+def _run_tiny_search(tmp_path, experiment_name, tracking_uri, **overrides):
+    input_path = tmp_path / f"{experiment_name}.csv"
+    sample_stations().to_csv(input_path, index=False)
+    args = {
+        "input_path": input_path,
+        "output_dir": tmp_path / f"{experiment_name}-output",
+        "candidate_k": (3,),
+        "random_seed": 42,
+        "n_init": 10,
+        "experiment_name": experiment_name,
+        "tracking_uri": tracking_uri,
+        "register_best": False,
+        "registry_model_name": P3_REGISTRY_MODEL_NAME,
+        "champion_alias": P3_CHAMPION_ALIAS,
+    }
+    args.update(overrides)
+    return run_search(**args)
+
+
+def test_search_nested_under_projects_run_in_configured_experiment(tmp_path, monkeypatch):
+    tracking_uri = temporary_experiment(tmp_path, "mibici-equipo49")
+    client = MlflowClient(tracking_uri=tracking_uri)
+    target_experiment = client.get_experiment_by_name("mibici-equipo49")
+    default_experiment = client.get_experiment_by_name("Default")
+    monkeypatch.delenv("MLFLOW_RUN_ID", raising=False)
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_uri)
+
+    with mlflow.start_run(
+        run_name="MLflow Projects wrapper",
+        experiment_id=default_experiment.experiment_id,
+    ) as wrapper:
+        monkeypatch.setenv("MLFLOW_RUN_ID", wrapper.info.run_id)
+        result = _run_tiny_search(
+            tmp_path,
+            "mibici-equipo49",
+            tracking_uri,
+        )
+        assert mlflow.active_run().info.run_id == wrapper.info.run_id
+        assert client.get_run(wrapper.info.run_id).info.status == "RUNNING"
+
+    parent = client.get_run(result.parent_run_id)
+    assert parent.info.status == "FINISHED"
+    assert parent.info.experiment_id == target_experiment.experiment_id
+    assert parent.data.tags["mlflow.parentRunId"] == wrapper.info.run_id
+    for child_run_id in result.child_run_ids.values():
+        child = client.get_run(child_run_id)
+        assert child.info.experiment_id == target_experiment.experiment_id
+        assert child.data.tags["mlflow.parentRunId"] == result.parent_run_id
+        assert child.info.status == "FINISHED"
+    assert client.get_run(wrapper.info.run_id).info.status == "FINISHED"
+    assert mlflow.active_run() is None
+
+
+def test_search_nests_under_projects_run_id_without_active_run(tmp_path, monkeypatch):
+    tracking_uri = temporary_experiment(tmp_path, "mibici-equipo49")
+    client = MlflowClient(tracking_uri=tracking_uri)
+    target_experiment = client.get_experiment_by_name("mibici-equipo49")
+    default_experiment = client.get_experiment_by_name("Default")
+    wrapper = client.create_run(
+        experiment_id=default_experiment.experiment_id,
+        tags={"mlflow.runName": "MLflow Projects wrapper"},
+    )
+    monkeypatch.setenv("MLFLOW_RUN_ID", wrapper.info.run_id)
+
+    result = _run_tiny_search(
+        tmp_path,
+        "mibici-equipo49",
+        tracking_uri,
+    )
+
+    parent = client.get_run(result.parent_run_id)
+    assert mlflow.active_run() is None
+    assert parent.info.status == "FINISHED"
+    assert parent.info.experiment_id == target_experiment.experiment_id
+    assert parent.data.tags["mlflow.parentRunId"] == wrapper.info.run_id
+    p3_search_runs = client.search_runs(
+        [target_experiment.experiment_id],
+        filter_string="tags.question = 'P3' and tags.stage_of_work = 'search'",
+    )
+    assert [run.info.run_id for run in p3_search_runs] == [result.parent_run_id]
+    for child_run_id in result.child_run_ids.values():
+        child = client.get_run(child_run_id)
+        assert child.info.experiment_id == target_experiment.experiment_id
+        assert child.data.tags["mlflow.parentRunId"] == result.parent_run_id
+        assert child.info.status == "FINISHED"
+    assert client.get_run(wrapper.info.run_id).info.status == "RUNNING"
+    client.set_terminated(wrapper.info.run_id)
+
+
+@pytest.mark.parametrize("with_projects_wrapper", [False, True])
+def test_search_exception_closes_owned_runs_without_orphans(
+    tmp_path,
+    monkeypatch,
+    with_projects_wrapper,
+):
+    tracking_uri = temporary_experiment(tmp_path, "p3-search-failure")
+    client = MlflowClient(tracking_uri=tracking_uri)
+    wrapper = None
+    if with_projects_wrapper:
+        monkeypatch.delenv("MLFLOW_RUN_ID", raising=False)
+        default_experiment = client.get_experiment_by_name("Default")
+        wrapper = mlflow.start_run(
+            run_name="MLflow Projects wrapper",
+            experiment_id=default_experiment.experiment_id,
+        )
+        monkeypatch.setenv("MLFLOW_RUN_ID", wrapper.info.run_id)
+    else:
+        monkeypatch.delenv("MLFLOW_RUN_ID", raising=False)
+
+    def fail_evaluation(*args, **kwargs):
+        raise RuntimeError("synthetic evaluation failure")
+
+    monkeypatch.setattr(cluster, "evaluate_kmeans_candidate", fail_evaluation)
+    with pytest.raises(RuntimeError, match="synthetic evaluation failure"):
+        _run_tiny_search(
+            tmp_path,
+            "p3-search-failure",
+            tracking_uri,
+        )
+
+    failed_runs = client.search_runs(
+        [client.get_experiment_by_name("p3-search-failure").experiment_id],
+        filter_string="tags.question = 'P3'",
+    )
+    assert len(failed_runs) == 1
+    assert failed_runs[0].info.status == "FAILED"
+    assert failed_runs[0].data.tags["stage_of_work"] == "search"
+    active_run = mlflow.active_run()
+    assert (active_run.info.run_id if active_run else None) == (
+        wrapper.info.run_id if wrapper else None
+    )
+    if wrapper is not None:
+        assert client.get_run(wrapper.info.run_id).info.status == "RUNNING"
+        mlflow.end_run()
+        assert client.get_run(wrapper.info.run_id).info.status == "FINISHED"
+
+
+def test_projects_empty_string_arguments_resolve_to_config_defaults(tmp_path, monkeypatch):
+    captured = {}
+
+    def capture_run_search(**kwargs):
+        captured.update(kwargs)
+
+    def reject_tracking_call(*args, **kwargs):
+        pytest.fail("CLI regression test must not access MLflow tracking.")
+
+    monkeypatch.setattr(search_p3, "run_search", capture_run_search)
+    monkeypatch.setattr(search_p3.mlflow, "start_run", reject_tracking_call)
+    monkeypatch.setattr(search_p3.mlflow, "set_tracking_uri", reject_tracking_call)
+    monkeypatch.setattr(search_p3, "MlflowClient", reject_tracking_call)
+    monkeypatch.setattr(search_p3.tempfile, "mkdtemp", lambda **_: str(tmp_path / "output"))
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        search_p3.app,
+        [
+            "--input-path",
+            "''",
+            "--output-dir",
+            "''",
+            "--k-values",
+            "''",
+            "--random-seed",
+            "''",
+            "--n-init",
+            "''",
+            "--register-best",
+            "false",
+            "--registry-model-name",
+            "''",
+            "--champion-alias",
+            "''",
+            "--selected-k",
+            "''",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["input_path"] == P3_INPUT_PATH
+    assert captured["output_dir"] == tmp_path / "output"
+    assert captured["candidate_k"] == list(P3_CANDIDATE_K)
+    assert captured["random_seed"] == RANDOM_SEED
+    assert captured["n_init"] == P3_N_INIT
+    assert captured["registry_model_name"] == P3_REGISTRY_MODEL_NAME
+    assert captured["champion_alias"] == P3_CHAMPION_ALIAS
+    assert captured["selected_k_override"] is None
+    assert captured["register_best"] is False
+    assert not (tmp_path / "''").exists()
+    assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("empty_value", ["", "''", '""', "   "])
+def test_optional_cli_normalization_preserves_nonempty_values(empty_value):
+    assert search_p3._normalize_optional(empty_value) is None
+    assert search_p3._normalize_optional("3,4") == "3,4"
+    assert search_p3._normalize_optional(" reports/output ") == "reports/output"
 
 
 def test_candidate_selection_uses_minimum_size_then_tie_breaks():
@@ -410,5 +618,19 @@ def test_mlproject_has_additive_p3_search_and_preserves_p2_search():
     assert "python -m mibici_ml.modeling.search_p3 --input-path" in p3_search["command"]
     assert p3_search["parameters"]["register_best"]["default"] == "false"
     assert p3_search["parameters"]["output_dir"]["default"] == ""
+    for name, parameter in p3_search["parameters"].items():
+        if name != "register_best":
+            assert parameter["default"] not in {"''", '""'}
+    for option in (
+        "input_path",
+        "output_dir",
+        "k_values",
+        "random_seed",
+        "n_init",
+        "registry_model_name",
+        "champion_alias",
+        "selected_k",
+    ):
+        assert f"--{option.replace('_', '-')} {{{option}}}" in p3_search["command"]
     assert set(P3_CANDIDATE_K) == {3, 4, 6, 7, 8}
     assert P3_BASELINE_K == 5

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
@@ -12,6 +13,7 @@ import tempfile
 from typing import Annotated, Any
 
 import mlflow
+from mlflow import MlflowClient
 import mlflow.data
 import numpy as np
 import pandas as pd
@@ -47,6 +49,7 @@ from mibici_ml.modeling.registry_p3 import (
 app = typer.Typer(no_args_is_help=True, help="Nested search reproducible para P3.")
 SELECTION_METRIC = "silhouette_score"
 MIN_CLUSTER_SIZE = 2
+MLFLOW_PARENT_RUN_ID = "mlflow.parentRunId"
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,39 @@ def select_best_candidate(metrics: pd.DataFrame) -> pd.Series:
 
 def _relative_source_path(input_path: Path) -> str:
     return os.path.relpath(input_path.resolve(), cluster.PROJ_ROOT)
+
+
+def _normalize_optional(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if normalized in {"", "''", '""'}:
+        return None
+    return normalized
+
+
+@contextmanager
+def _search_parent_run(experiment_id: str, project_run_id: str | None) -> Iterator[Any]:
+    """Create a P3 coordinator under a Projects wrapper without taking its ownership."""
+    active_run = mlflow.active_run()
+    external_parent_id = active_run.info.run_id if active_run else project_run_id
+    tags = (
+        {MLFLOW_PARENT_RUN_ID: external_parent_id}
+        if active_run is None and external_parent_id
+        else None
+    )
+    wrapper_run_id = os.environ.pop("MLFLOW_RUN_ID", None)
+    try:
+        with mlflow.start_run(
+            run_name="P3-kmeans-nested-search",
+            experiment_id=experiment_id,
+            nested=external_parent_id is not None,
+            tags=tags,
+        ) as run:
+            yield run
+    finally:
+        if wrapper_run_id is not None:
+            os.environ["MLFLOW_RUN_ID"] = wrapper_run_id
 
 
 def _build_manifest(
@@ -213,13 +249,16 @@ def run_search(
         digest=input_sha256[:36],
     )
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment(experiment_name)
+    experiment = mlflow.set_experiment(experiment_name)
     output_dir.mkdir(parents=True, exist_ok=True)
+    project_run_id = os.environ.get("MLFLOW_RUN_ID")
+    if project_run_id and mlflow.active_run() is None:
+        MlflowClient(tracking_uri=tracking_uri).get_run(project_run_id)
 
     child_run_ids: dict[int, str] = {}
     child_metrics: dict[int, dict[str, int | float]] = {}
     candidate_run_ids: dict[int, str] = {}
-    with mlflow.start_run(run_name="P3-kmeans-nested-search") as parent_run:
+    with _search_parent_run(experiment.experiment_id, project_run_id) as parent_run:
         parent_run_id = parent_run.info.run_id
         parent_tags = {
             "team": "equipo49",
@@ -508,6 +547,14 @@ def run_command(
     selected_k: Annotated[str, typer.Option(help="Override manual de k; vacio = recomendación.")] = "",
 ) -> None:
     """Run a nested P3 search; Registry promotion is opt-in and validated."""
+    input_path = _normalize_optional(input_path)
+    output_dir = _normalize_optional(output_dir)
+    k_values = _normalize_optional(k_values)
+    random_seed = _normalize_optional(random_seed)
+    n_init = _normalize_optional(n_init)
+    registry_model_name = _normalize_optional(registry_model_name)
+    champion_alias = _normalize_optional(champion_alias)
+    selected_k = _normalize_optional(selected_k)
     candidate_values = (
         [int(item.strip()) for item in k_values.split(",") if item.strip()]
         if k_values

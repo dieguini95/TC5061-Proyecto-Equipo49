@@ -42,4 +42,4 @@ entry_points:
       registry_model_name: {type: string, default: "", description: "Nombre Registry; vacio = config.py."}
       champion_alias: {type: string, default: "", description: "Alias; vacio = config.py."}
       selected_k: {type: string, default: "", description: "Override manual; vacio = recomendacion."}
-    command: "python -m mibici_ml.modeling.search_p3 --input-path \"{input_path}\" --output-dir \"{output_dir}\" --k-values \"{k_values}\" --random-seed \"{random_seed}\" --n-init \"{n_init}\" --register-best \"{register_best}\" --registry-model-name \"{registry_model_name}\" --champion-alias \"{champion_alias}\" --selected-k \"{selected_k}\""
+    command: "python -m mibici_ml.modeling.search_p3 --input-path {input_path} --output-dir {output_dir} --k-values {k_values} --random-seed {random_seed} --n-init {n_init} --register-best {register_best} --registry-model-name {registry_model_name} --champion-alias {champion_alias} --selected-k {selected_k}"
