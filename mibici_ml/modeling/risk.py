@@ -357,8 +357,13 @@ def fit_and_score(
     panel: pd.DataFrame,
     masks: dict[str, np.ndarray],
     random_seed: int,
+    hyperparams: dict[str, Any] | None = None,
 ) -> tuple[dict[str, float], dict[str, np.ndarray], Any]:
-    """Ajusta un modelo en entrenamiento y regresa puntajes de validacion y prueba."""
+    """Ajusta un modelo en entrenamiento y regresa puntajes de validacion y prueba.
+
+    ``hyperparams`` sobrescribe los hiperparametros del modelo (p. ej. el ganador de la
+    busqueda); sin el, se usan los valores por defecto de sklearn.
+    """
     x_all = features[list(FEATURE_COLUMNS)].to_numpy(dtype=float)
     ts = panel["ts"]
     if name == "persistencia":
@@ -367,7 +372,7 @@ def fit_and_score(
         model = None
         threshold = 0.5
     else:
-        model = build_model(name, random_seed)
+        model = build_model(name, random_seed, hyperparams)
         model.fit(x_all[masks["train"]], labels[masks["train"]])
         scores = {
             "val": _positive_proba(model, x_all[masks["val"]]),
@@ -419,14 +424,24 @@ def plot_pr_curves(
 
 
 def evaluate_all(
-    panel: pd.DataFrame, features: pd.DataFrame, random_seed: int
+    panel: pd.DataFrame,
+    features: pd.DataFrame,
+    random_seed: int,
+    tuned: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any], dict[str, tuple[np.ndarray, np.ndarray]]]:
-    """Ajusta los 4 modelos y devuelve metricas de validacion, modelos y puntajes."""
+    """Ajusta los modelos y devuelve metricas de validacion, modelos y puntajes.
+
+    ``tuned`` mapea nombre de modelo a hiperparametros del ganador de la busqueda. Solo
+    esos modelos usan los hiperparametros indicados; el resto queda con sus defaults.
+    """
     labels = panel["label"].to_numpy()
     masks = temporal_masks(panel)
+    tuned = tuned or {}
     rows, models, val_scores = [], {}, {}
     for name in MODEL_NAMES:
-        metrics, scores, model = fit_and_score(name, features, labels, panel, masks, random_seed)
+        metrics, scores, model = fit_and_score(
+            name, features, labels, panel, masks, random_seed, hyperparams=tuned.get(name)
+        )
         rows.append({"modelo": name, **metrics})
         models[name] = model
         val_scores[name] = (labels[masks["val"]], scores["val"])
@@ -693,7 +708,6 @@ def evaluate_command(
     logger.success("Evaluacion P2 (solo validacion) guardada en {}", output_dir)
 
 
-@app.command("run")
 def _train_metadata(features: pd.DataFrame, masks: dict[str, np.ndarray]) -> pd.DataFrame:
     """Metadatos del conjunto de entrenamiento para ``mlflow.log_input``.
 
@@ -729,6 +743,7 @@ def _confusion_for(
     )
 
 
+@app.command("run")
 def run_command(
     *,
     manifest_path: MANIFEST_OPTION = DATA_MANIFEST_PATH,
@@ -739,12 +754,20 @@ def run_command(
     ],
     random_seed: Annotated[int, typer.Option(help="Semilla de los modelos.")] = RANDOM_SEED,
     with_mlflow: Annotated[bool, typer.Option(help="Registrar runs en MLflow local.")] = False,
+    tuned_json: Annotated[
+        str,
+        typer.Option(
+            help="Hiperparametros del ganador de la busqueda, en JSON (p. ej. "
+            "'{\"learning_rate\": 0.03}'). Vacio = defaults de sklearn."
+        ),
+    ] = "",
 ) -> None:
     """Registra 4 runs de validacion y 1 run final con metricas de prueba del modelo elegido."""
     if final_model not in CANDIDATE_NAMES:
         raise typer.BadParameter(f"--final-model debe ser uno de: {', '.join(CANDIDATE_NAMES)}.")
+    tuned = {final_model: json.loads(tuned_json)} if tuned_json.strip() else {}
     panel, features, quality, manifest = _prepare(manifest_path, processed_dir)
-    metrics, context, val_scores = evaluate_all(panel, features, random_seed)
+    metrics, context, val_scores = evaluate_all(panel, features, random_seed, tuned=tuned)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics.to_csv(output_dir / "p2_metricas_validacion.csv", index=False)
     plot_pr_curves(val_scores, output_dir / "p2_curva_pr.png")
@@ -811,7 +834,11 @@ def run_command(
             run_type="final_test",
             model_name=final_model,
             random_seed=random_seed,
-            params_extra={"split_scope": "test_once", "selected_on": "validation"},
+            params_extra={
+                "split_scope": "test_once",
+                "selected_on": "validation",
+                "tuned_hyperparams": json.dumps(tuned.get(final_model, {}), sort_keys=True),
+            },
             metrics={k: float(v) for k, v in final_metrics.items() if k != "modelo"},
             quality=quality,
             artifacts=artifacts,

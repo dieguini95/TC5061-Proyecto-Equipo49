@@ -453,3 +453,15 @@ def test_feature_set_v1_is_default_and_unchanged():
 
     assert risk.FEATURE_SETS["v1"] == P2_FEATURE_COLUMNS
     assert len(P2_FEATURE_COLUMNS) == 11
+
+
+def test_risk_cli_registers_evaluate_and_run_commands():
+    from typer.testing import CliRunner
+
+    from mibici_ml.modeling import risk
+
+    runner = CliRunner()
+    result = runner.invoke(risk.app, ["--help"])
+    assert result.exit_code == 0
+    assert "evaluate" in result.output
+    assert "run" in result.output
