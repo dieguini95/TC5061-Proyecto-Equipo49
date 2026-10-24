@@ -468,8 +468,9 @@ def ingest_dataset(
     return manifest
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     raw_dir: Path = RAW_DATA_DIR,
     processed_dir: Path = PROCESSED_DATA_DIR,
     manifest_path: Path = DATA_MANIFEST_PATH,
@@ -480,9 +481,38 @@ def main(
         bool, typer.Option(help="Descargar y aceptar nuevos hashes de las fuentes.")
     ] = False,
 ):
-    """Download/reuse CSVs, normalize them, and write Parquet plus a manifest."""
+    """Download/reuse CSVs, normalize them, and write Parquet plus a manifest.
+
+    Sin subcomando (``python -m mibici_ml.dataset``) ejecuta la ingesta con estas opciones.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
     ingest_dataset(
         raw_dir, processed_dir, manifest_path, start_month, end_month, source_dir, refresh
+    )
+
+
+@app.command("ingest")
+def ingest_command(
+    start_month: Annotated[str, typer.Option(help="Primer mes AAAA-MM. Vacio = config.")] = "",
+    end_month: Annotated[str, typer.Option(help="Ultimo mes AAAA-MM. Vacio = config.")] = "",
+    source_dir: Annotated[str, typer.Option(help="CSV ya descargados. Vacio = descargar.")] = "",
+    refresh: Annotated[
+        str, typer.Option(help="true para descargar y aceptar hashes nuevos.")
+    ] = "false",
+) -> None:
+    """Entry point de MLflow Projects: acepta parametros de texto y usa config si estan vacios.
+
+    Equivale a ``main`` pero tolera que ``mlflow run`` pase cadenas vacias o ``true``/``false``.
+    """
+    ingest_dataset(
+        RAW_DATA_DIR,
+        PROCESSED_DATA_DIR,
+        DATA_MANIFEST_PATH,
+        start_month.strip() or START_MONTH,
+        end_month.strip() or END_MONTH,
+        Path(source_dir.strip()) if source_dir.strip() else None,
+        refresh.strip().lower() in {"1", "true", "yes", "si", "sí"},
     )
 
 

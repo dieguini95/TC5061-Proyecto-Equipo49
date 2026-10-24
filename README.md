@@ -162,11 +162,10 @@ python -m mibici_ml.modeling.cluster evaluate --input-path reports/tables/estaci
 Después de revisar la tabla de métricas y decidir `FINAL_K`, ejecutar el baseline y registrar MLflow:
 
 ```bash
-MLFLOW_ALLOW_FILE_STORE=true python -m mibici_ml.modeling.cluster run --input-path reports/tables/estaciones_resumen.csv --output-dir /tmp/mibici-p3-baseline-artifacts --k-min 3 --k-max 8 --final-k FINAL_K --random-seed 42 --with-mlflow
+python -m mibici_ml.modeling.cluster run --input-path reports/tables/estaciones_resumen.csv --output-dir /tmp/mibici-p3-baseline-artifacts --k-min 3 --k-max 8 --final-k FINAL_K --random-seed 42 --with-mlflow
 ```
 
-`MLFLOW_ALLOW_FILE_STORE=true` habilita el backend local `file://` configurado en este proyecto con
-MLflow 3.17.1; solo aplica al proceso de ese comando. La corrida usa el experimento `mibici-equipo49`.
+El registro usa el backend SQLite `mlflow.db` definido en `mibici_ml/config.py` (no requiere variables de entorno). La corrida usa el experimento `mibici-equipo49`.
 No ejecutes el segundo comando hasta que el equipo acuerde `FINAL_K`.
 
 El baseline produce `p3_metricas_por_k.csv`, `p3_comparacion_k.png`, `p3_asignaciones_cluster.csv`,
@@ -196,10 +195,10 @@ Comandos (desde la raíz del proyecto, después de la ingesta de `dataset.py`):
 
 ```bash
 # 1. Compara los 4 modelos solo en validación (no abre la prueba)
-python -m mibici_ml.modeling.risk evaluate --output-dir reports/tables
+python -m mibici_ml.modeling.risk evaluate --output-dir /tmp/mibici-p2-evaluate
 
 # 2. Registra 4 runs de validación y 1 run final con prueba del modelo elegido
-MLFLOW_ALLOW_FILE_STORE=true python -m mibici_ml.modeling.risk run --output-dir reports/tables \
+python -m mibici_ml.modeling.risk run --output-dir /tmp/mibici-p2-run \
   --final-model hist_gb --with-mlflow
 ```
 
@@ -237,12 +236,89 @@ versión distinta de `0f000bd5…`. Eso no indica un error de los viajes: es la 
 `--refresh` para "arreglarlo", porque reescribiría el manifiesto versionado; la versión de referencia es la del
 manifiesto en Git.
 
+## Proyecto MLflow
+
+El proyecto es un [MLflow Project](https://mlflow.org/docs/latest/ml/projects/) (`MLproject`)
+con entorno en `python_env.yaml` (Python 3.12, dependencias fijas de `requirements.txt`). Los
+valores por defecto (rutas, ventana, semilla, experimento y URI de tracking) están en
+`mibici_ml/config.py`; el `MLproject` no los repite.
+
+### 1. Servidor de tracking (SQLite)
+
+El backend es `sqlite:///mlflow.db` en la raíz del repositorio (ignorado por Git). Desde la raíz,
+con el entorno del proyecto activo:
+
+```bash
+mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
+```
+
+En PowerShell (la ruta debe ser absoluta para que `mlflow run` y el servidor usen el mismo archivo):
+
+```powershell
+$db = (Resolve-Path .\mlflow.db).Path -replace '\\', '/'
+mlflow server --backend-store-uri "sqlite:///$db" --host 127.0.0.1 --port 5000
+```
+
+Abrir [http://127.0.0.1:5000](http://127.0.0.1:5000). Para que `mlflow run` escriba en el mismo
+servidor, exportar `MLFLOW_TRACKING_URI=http://127.0.0.1:5000` antes de ejecutar los comandos
+(si no se exporta, escribe directamente en `mlflow.db` mediante `config.py`).
+
+### 2. Ejecutar los entry points
+
+Desde la raíz del repositorio:
+
+```bash
+# Ingesta reproducible (descarga o reutiliza los CSV, escribe Parquet y el manifiesto)
+mlflow run . -e ingest
+
+# Entrenamiento por pregunta: question = p1 | p2 | p3
+mlflow run . -e train -P question=p2 -P model=hist_gb
+mlflow run . -e train -P question=p1
+mlflow run . -e train -P question=p3 -P final_k=FINAL_K
+
+# Busqueda anidada de hiperparametros de P2 (run padre + un run hijo por combinacion)
+mlflow run . -e search
+```
+
+Los parámetros vacíos o no declarados usan el valor de `config.py`. `search` y `train` solo usan
+la partición de validación para elegir; la prueba se abre una sola vez por pregunta.
+
+### 3. Esquema del Model Registry
+
+Cada modelo final se registra con el nombre `mibici-equipo49-<pregunta>-<tema>` y se asigna un
+**alias** (no se usan las etapas legacy `Staging`/`Production`):
+
+| Modelo registrado | Pregunta | Estado | Alias de producción | Alias de comparación |
+|---|---|---|---|---|
+| `mibici-equipo49-p2-riesgo-hist_gb` | P2 | Registrado por `train -P question=p2` con `--final-model hist_gb` | `champion` | `challenger` (opcional) |
+| `mibici-equipo49-p2-riesgo-logistica` | P2 | Registrado si se entrena con `--final-model logistica` | `champion` si gana en validación | `challenger` |
+| `mibici-equipo49-p1-demanda` | P1 | Pendiente: P1 es solo baselines fijados, sin modelo registrado | n/a | n/a |
+| `mibici-equipo49-p3-grupos` | P3 | Pendiente: P3 es exploratorio, sin modelo registrado | n/a | n/a |
+
+Asignar el alias después de revisar la validación (ejemplo P2):
+
+```python
+from mlflow import MlflowClient
+client = MlflowClient(tracking_uri="sqlite:///mlflow.db")
+client.set_registered_model_alias("mibici-equipo49-p2-riesgo-hist_gb", "champion", version="1")
+```
+
+Cargar el modelo por alias, sin depender de un número de versión:
+
+```python
+import mlflow.sklearn
+model = mlflow.sklearn.load_model("models:/mibici-equipo49-p2-riesgo-hist_gb@champion")
+```
+
+Cada versión conserva su **linaje**: el run de origen (parámetros, métricas, etiquetas
+`git_commit`, `git_dirty`, `data_version`) y los artefactos (manifiesto, curva PR, importancia).
+
 ## Experimentos (MLflow)
 
 Experimento base integrado (paso 6). Configuración base en `mibici_ml/config.py`:
 
 - Nombre del experimento: `mibici-equipo49`.
-- Seguimiento local en `mlruns/` (no versionado).
+- Seguimiento local en SQLite (`mlflow.db`, no versionado). Ver la sección *Proyecto MLflow* más abajo.
 - Cada run registra parámetros (ventanas, semilla, horizonte, `data_version`), métricas `val_*` y `test_*`
   (`test_*` solo en el run final), etiquetas (`team`, `question`, `git_commit`, `git_dirty`, `data_version`)
   y artefactos. Ningún dato a nivel de viaje o de usuario se registra.
@@ -255,15 +331,7 @@ del código. Para reproducir, clonar el repositorio, hacer checkout del commit r
 Los runs finales corresponden al commit `52af95c13416705906f0630f058a4c78645a2fbe`, con `git_dirty=false`.
 Las primeras corridas locales se conservan en MLflow; las capturas adjuntas muestran los runs finales.
 
-Para abrir MLflow desde otra terminal PowerShell, en la raíz del repositorio:
-
-```powershell
-$env:MLFLOW_ALLOW_FILE_STORE = "true"
-$trackingUri = ([System.Uri]((Resolve-Path .\mlruns).Path)).AbsoluteUri
-.\.venv\Scripts\mlflow.exe ui --backend-store-uri $trackingUri --host 127.0.0.1 --port 5000
-```
-
-Abrir [MLflow local](http://127.0.0.1:5000). El comando P1 habilita el backend `file://` automáticamente.
+Para abrir la interfaz de MLflow sobre el mismo backend, ver *Proyecto MLflow* (servidor en el puerto 5000).
 
 ## Flujo de trabajo (GitHub Flow)
 

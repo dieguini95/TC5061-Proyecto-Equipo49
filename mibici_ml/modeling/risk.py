@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -233,8 +232,13 @@ def persistence_scores(panel: pd.DataFrame, labels: np.ndarray) -> np.ndarray:
     return shifted.to_numpy().astype(float)
 
 
-def build_model(name: str, random_seed: int) -> Any:
-    """Construye un modelo sin ajustarlo."""
+def build_model(name: str, random_seed: int, params: dict[str, Any] | None = None) -> Any:
+    """Construye un modelo sin ajustarlo.
+
+    ``params`` sobrescribe hiperparametros del estimador (usado por la busqueda en
+    ``search.py``). Sin ``params`` se usan los valores por defecto de sklearn.
+    """
+    extra = dict(params or {})
     if name == "mayoritaria":
         return DummyClassifier(strategy="most_frequent")
     if name == "logistica":
@@ -244,13 +248,16 @@ def build_model(name: str, random_seed: int) -> Any:
                 (
                     "clf",
                     LogisticRegression(
-                        class_weight="balanced", max_iter=1000, random_state=random_seed
+                        class_weight="balanced",
+                        max_iter=extra.pop("max_iter", 1000),
+                        random_state=random_seed,
+                        **extra,
                     ),
                 ),
             ]
         )
     if name == "hist_gb":
-        return HistGradientBoostingClassifier(random_state=random_seed)
+        return HistGradientBoostingClassifier(random_state=random_seed, **extra)
     raise ValueError(f"Modelo no soportado para ajuste: {name}")
 
 
@@ -457,14 +464,18 @@ def log_p2_run(
     manifest: dict,
     experiment_name: str = EXPERIMENT_NAME,
     tracking_uri: str = MLFLOW_TRACKING_URI,
+    registered_model_name: str | None = None,
+    nested: bool = False,
 ) -> str:
     """Registra un run de P2 en MLflow y regresa su ID.
 
     Etiquetas: equipo, pregunta, tipo de run, commit y estado del arbol. Parametros:
     ventanas, semilla, horizonte y ``data_version``. Sin datos a nivel viaje ni
     identificadores de usuario.
+
+    ``nested`` anida el run bajo el run activo (busqueda). ``registered_model_name``
+    registra el modelo en el Model Registry (solo para el modelo final).
     """
-    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
     import mlflow
     from mlflow import sklearn as mlflow_sklearn
 
@@ -512,7 +523,10 @@ def log_p2_run(
     with tempfile.TemporaryDirectory(prefix="p2-manifest-") as temporary:
         manifest_copy = Path(temporary) / "data_manifest.json"
         manifest_copy.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
-        with mlflow.start_run(run_name=run_name) as run:
+        # Dentro de `mlflow run` ya hay un run activo (el del proceso). Los candidatos
+        # se anidan bajo el, para no escribir parametros distintos en un mismo run.
+        nest = nested or mlflow.active_run() is not None
+        with mlflow.start_run(run_name=run_name, nested=nest) as run:
             mlflow.log_params({k: str(v) for k, v in params.items()})
             mlflow.log_metrics({k: float(v) for k, v in metrics.items() if np.isfinite(v)})
             mlflow.set_tags(tags)
@@ -524,6 +538,7 @@ def log_p2_run(
                     model,
                     name=f"p2_{model_name}",
                     skops_trusted_types=SKOPS_TRUSTED_TYPES,
+                    registered_model_name=registered_model_name,
                 )
             return run.info.run_id
 
@@ -653,6 +668,7 @@ def run_command(
             model=model_obj_final,
             temporal_holdout=True,
             manifest=manifest,
+            registered_model_name=f"{config.P2_REGISTERED_MODEL_PREFIX}-{final_model}",
         )
         logger.success("Run final P2 ({}) registrado en MLflow: {}", final_model, run_id)
     logger.success("Artefactos P2 guardados en {}", output_dir)

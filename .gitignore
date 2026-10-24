@@ -195,6 +195,7 @@ cython_debug/
 *.parquet
 *.feather
 *.db
+mlflow.db
 mlruns/
 mlartifacts/
 *.pkl

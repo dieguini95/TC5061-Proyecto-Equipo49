@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -261,7 +260,6 @@ def log_runs(
 ) -> list[dict]:
     """Registra ambos baselines y snapshot reproducible en el experimento del equipo."""
     validate_p1_forecast_contract()
-    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
     import mlflow
 
     mlflow.set_tracking_uri(tracking_uri)
