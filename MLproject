@@ -29,3 +29,17 @@ entry_points:
     # Busqueda anidada de P2: un run padre y un hijo por combinacion. Solo validacion.
     parameters: {}
     command: "python -m mibici_ml.modeling.search"
+
+  search_p3:
+    # P3 baseline historico k=5 mas cinco candidatos anidados; no promueve por defecto.
+    parameters:
+      input_path: {type: string, default: "", description: "CSV agregado P3; vacio = config.py."}
+      output_dir: {type: string, default: "", description: "Directorio temporal unico; nunca reports/tables."}
+      k_values: {type: string, default: "", description: "Ks candidatos separados por coma; vacio = config.py."}
+      random_seed: {type: string, default: "", description: "Semilla; vacio = config.py."}
+      n_init: {type: string, default: "", description: "n_init KMeans; vacio = config.py."}
+      register_best: {type: string, default: "false", description: "true para registrar, validar y asignar alias."}
+      registry_model_name: {type: string, default: "", description: "Nombre Registry; vacio = config.py."}
+      champion_alias: {type: string, default: "", description: "Alias; vacio = config.py."}
+      selected_k: {type: string, default: "", description: "Override manual; vacio = recomendacion."}
+    command: "python -m mibici_ml.modeling.search_p3 --input-path \"{input_path}\" --output-dir \"{output_dir}\" --k-values \"{k_values}\" --random-seed \"{random_seed}\" --n-init \"{n_init}\" --register-best \"{register_best}\" --registry-model-name \"{registry_model_name}\" --champion-alias \"{champion_alias}\" --selected-k \"{selected_k}\""
