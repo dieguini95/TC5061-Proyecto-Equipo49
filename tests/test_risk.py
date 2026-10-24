@@ -279,7 +279,13 @@ def test_evaluate_all_runs_on_synthetic_panel_without_test_leak():
     )
     features = build_p2_features(panel)
     metrics, context, _ = evaluate_all(panel, features, random_seed=7)
-    assert set(metrics["modelo"]) == {"mayoritaria", "persistencia", "logistica", "hist_gb"}
+    assert set(metrics["modelo"]) == {
+        "mayoritaria",
+        "persistencia",
+        "logistica",
+        "hist_gb",
+        "extra_trees",
+    }
     assert all("test_" not in column for column in metrics.columns)
     assert context["masks"]["test"].sum() > 0
 
@@ -413,3 +419,37 @@ def test_log_p2_run_logs_signature_input_and_plots_subfolder(tmp_path):
 def test_search_stage_of_work_tag_is_search():
     assert _stage_of_work("search_candidate") == "search"
     assert _stage_of_work("final_test") == "final"
+
+
+def test_build_model_supports_l1_logistic_and_extra_trees():
+    l1 = build_model("logistica", random_seed=1, params={"C": 1.0, "penalty": "l1"})
+    assert l1.named_steps["clf"].solver == "liblinear"
+    assert l1.named_steps["clf"].penalty == "l1"
+    trees = build_model("extra_trees", random_seed=1, params={"min_samples_leaf": 20})
+    assert trees.n_estimators == 300
+    assert trees.min_samples_leaf == 20
+
+
+def test_v2_features_do_not_depend_on_future_rows():
+    from mibici_ml.features import P2_FEATURE_COLUMNS_V2, add_p2_v2_features
+
+    base = build_p2_features(_feature_panel())
+    base["inventario"] = 5.0
+    base["day"] = pd.to_datetime(base["ts"]).dt.normalize()
+    altered = base.copy()
+    altered.loc[25:, ["salidas", "llegadas", "flujo_acumulado", "inventario"]] = 999
+    v2_a = add_p2_v2_features(base)
+    v2_b = add_p2_v2_features(altered)
+    cut = 20
+    pd.testing.assert_frame_equal(
+        v2_a.loc[:cut, list(P2_FEATURE_COLUMNS_V2)].reset_index(drop=True),
+        v2_b.loc[:cut, list(P2_FEATURE_COLUMNS_V2)].reset_index(drop=True),
+    )
+
+
+def test_feature_set_v1_is_default_and_unchanged():
+    from mibici_ml.features import P2_FEATURE_COLUMNS
+    from mibici_ml.modeling import risk
+
+    assert risk.FEATURE_SETS["v1"] == P2_FEATURE_COLUMNS
+    assert len(P2_FEATURE_COLUMNS) == 11

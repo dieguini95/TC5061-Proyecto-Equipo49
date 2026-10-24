@@ -9,12 +9,14 @@ from mibici_ml.modeling import search, train
 
 
 def test_grid_combinations_match_config_grid():
-    combos = search.grid_combinations("hist_gb")
-    expected = len(config.P2_SEARCH_GRID["hist_gb"]["learning_rate"]) * len(
-        config.P2_SEARCH_GRID["hist_gb"]["max_iter"]
-    ) * len(config.P2_SEARCH_GRID["hist_gb"]["max_leaf_nodes"])
-    assert len(combos) == expected
-    assert all(set(c) == set(config.P2_SEARCH_GRID["hist_gb"]) for c in combos)
+    # El numero esperado sale del producto cartesiano del grid, no de ejes fijos.
+    for model_name, grid in config.P2_SEARCH_GRID.items():
+        combos = search.grid_combinations(model_name)
+        expected = 1
+        for values in grid.values():
+            expected *= len(values)
+        assert len(combos) == expected
+        assert all(set(c) == set(grid) for c in combos)
 
 
 def test_build_model_applies_search_hyperparameters():

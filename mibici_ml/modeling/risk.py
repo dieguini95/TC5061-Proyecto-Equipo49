@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -30,7 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -64,6 +65,8 @@ from mibici_ml.config import (
 from mibici_ml.dataset import _data_version
 from mibici_ml.features import (
     P2_FEATURE_COLUMNS,
+    P2_FEATURE_COLUMNS_V2,
+    add_p2_v2_features,
     build_p2_features,
     build_p2_hourly_flows,
     build_p2_station_day_panel,
@@ -71,14 +74,22 @@ from mibici_ml.features import (
 
 app = typer.Typer(no_args_is_help=True, help="Clasificacion de riesgo P2 para estaciones MiBici.")
 
-MODEL_NAMES = ("mayoritaria", "persistencia", "logistica", "hist_gb")
-CANDIDATE_NAMES = ("logistica", "hist_gb")
-FEATURE_COLUMNS = P2_FEATURE_COLUMNS
+MODEL_NAMES = ("mayoritaria", "persistencia", "logistica", "hist_gb", "extra_trees")
+CANDIDATE_NAMES = ("logistica", "hist_gb", "extra_trees")
+# Conjunto activo de features. "v1" reproduce Etapa 1; "v2" agrega estado observado.
+# Se elige con la variable de entorno P2_FEATURE_SET (por defecto v1, sin cambios).
+FEATURE_SETS = {"v1": P2_FEATURE_COLUMNS, "v2": P2_FEATURE_COLUMNS_V2}
+ACTIVE_FEATURE_SET = os.environ.get("P2_FEATURE_SET", "v1")
+if ACTIVE_FEATURE_SET not in FEATURE_SETS:
+    raise ValueError(f"P2_FEATURE_SET debe ser uno de: {', '.join(FEATURE_SETS)}.")
+FEATURE_COLUMNS = FEATURE_SETS[ACTIVE_FEATURE_SET]
 N_TOP_K_MIN = 1
 # HistGradientBoosting usa TreePredictor, que MLflow marca como tipo no confiable (skops).
 # El modelo se entrena localmente en este repo, asi que lo permitimos solo para este tipo.
 SKOPS_TRUSTED_TYPES = [
     "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
+    # Almacenamiento de nodos de los arboles de ExtraTrees (mismo motivo que TreePredictor).
+    "sklearn.tree._tree.Tree",
 ]
 
 
@@ -199,6 +210,11 @@ def build_modeling_frame(
     flows = build_p2_hourly_flows(trips)
     panel, bounds = build_p2_station_day_panel(flows, capacities)
     features = build_p2_features(panel)
+    if ACTIVE_FEATURE_SET == "v2":
+        # Estado observado y tendencia: usan el inventario del panel, sin mirar al futuro.
+        v2 = add_p2_v2_features(panel)
+        extra_cols = [c for c in P2_FEATURE_COLUMNS_V2 if c not in features.columns]
+        features = pd.concat([features, v2[extra_cols].reset_index(drop=True)], axis=1)
     return panel, features, bounds, capacities, trips
 
 
@@ -251,6 +267,8 @@ def build_model(name: str, random_seed: int, params: dict[str, Any] | None = Non
                         class_weight="balanced",
                         max_iter=extra.pop("max_iter", 1000),
                         random_state=random_seed,
+                        # L1 requiere liblinear; lbfgs solo admite L2.
+                        solver="liblinear" if extra.get("penalty") == "l1" else "lbfgs",
                         **extra,
                     ),
                 ),
@@ -258,6 +276,13 @@ def build_model(name: str, random_seed: int, params: dict[str, Any] | None = Non
         )
     if name == "hist_gb":
         return HistGradientBoostingClassifier(random_state=random_seed, **extra)
+    if name == "extra_trees":
+        return ExtraTreesClassifier(
+            class_weight="balanced_subsample",
+            random_state=random_seed,
+            n_jobs=-1,
+            **{"n_estimators": 300, **extra},
+        )
     raise ValueError(f"Modelo no soportado para ajuste: {name}")
 
 
@@ -454,6 +479,7 @@ MODEL_FAMILY = {
     "persistencia": "baseline",
     "logistica": "linear",
     "hist_gb": "gradient_boosting",
+    "extra_trees": "tree_ensemble",
 }
 
 

@@ -117,11 +117,19 @@ P2_RUNS_PATH = TABLES_DIR / "p2_runs.json"
 P2_FIGURES = {"pr_curve": FIGURES_DIR / "P2_pr_curve.png"}
 # Grid de busqueda anidada (solo validacion). PROVISIONAL: ajustar con el equipo.
 P2_SEARCH_GRID = {
-    "logistica": {"C": (0.1, 1.0, 10.0)},
+    # C casi no cambia el PR-AUC en Etapa 1 (0.0123 en los tres valores); se mantiene
+    # solo para documentar que se probo y se reemplaza el eje por penalizacion L1/L2.
+    "logistica": {"C": (0.1, 1.0), "penalty": ("l2", "l1")},
     "hist_gb": {
-        "learning_rate": (0.05, 0.1),
-        "max_iter": (100, 300),
+        "learning_rate": (0.03, 0.05),
+        "max_iter": (300, 600),
         "max_leaf_nodes": (15, 31),
+        "min_samples_leaf": (20, 100),
+    },
+    "extra_trees": {
+        "n_estimators": (300,),
+        "max_depth": (None, 12),
+        "min_samples_leaf": (20, 100),
     },
 }
 P2_REGISTERED_MODEL_PREFIX = "mibici-equipo49-p2-riesgo"
