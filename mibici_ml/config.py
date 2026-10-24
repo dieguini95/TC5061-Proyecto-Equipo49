@@ -129,10 +129,15 @@ P2_REGISTERED_MODEL_PREFIX = "mibici-equipo49-p2-riesgo"
 # ---------------------------------------------------------------------------
 # P3: clustering de estaciones por perfil de uso
 # ---------------------------------------------------------------------------
-# PROVISIONAL: rango de K a comparar con silueta, Davies-Bouldin y Calinski-Harabasz.
-P3_K_RANGE = tuple(range(2, 9))
-P3_PCA_VARIANCE = 0.90  # varianza explicada minima antes de K-Means
-P3_STABILITY_RUNS = 10  # corridas con semillas distintas para medir ARI
+P3_INPUT_PATH = TABLES_DIR / "estaciones_resumen.csv"
+P3_BASELINE_K = 5
+P3_CANDIDATE_K = (3, 4, 6, 7, 8)
+P3_MODEL_FEATURES = ("capacidad", "salidas_12m", "llegadas_12m")
+P3_PERIOD = "2025-10_to_2026-09"
+P3_REGISTRY_MODEL_NAME = "mibici-equipo49-p3-grupos"
+P3_CHAMPION_ALIAS = "champion"
+P3_SEARCH_EXPERIMENT_NAME = EXPERIMENT_NAME
+P3_N_INIT = 10
 
 # ---------------------------------------------------------------------------
 # Logging: si tqdm esta instalado, loguru escribe con tqdm.write
