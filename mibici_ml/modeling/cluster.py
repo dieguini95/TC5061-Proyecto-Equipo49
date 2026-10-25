@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 import subprocess
+import time
 from typing import Annotated, Any
 
 from loguru import logger
@@ -27,6 +28,7 @@ import typer
 from mibici_ml.config import (
     EXPERIMENT_NAME,
     MLFLOW_TRACKING_URI,
+    P3_N_INIT,
     PROJ_ROOT,
     RANDOM_SEED,
     TABLES_DIR,
@@ -69,7 +71,7 @@ ARTIFACT_NAMES = (
     "p3_mapa_clusters.png",
     "p3_calidad_datos.csv",
 )
-N_INIT = 10
+N_INIT = P3_N_INIT
 
 
 def load_station_summary(input_path: Path) -> pd.DataFrame:
@@ -239,33 +241,57 @@ def evaluate_kmeans_candidates(
     if not np.isfinite(values).all():
         raise ValueError("La matriz de features debe ser finita y no contener faltantes.")
 
-    rows: list[dict[str, int | float]] = []
-    for k in range(k_min, k_max + 1):
-        pipeline = build_pipeline(k, random_seed, n_init)
-        labels = pipeline.fit_predict(features)
-        cluster_sizes = pd.Series(labels).value_counts()
-        if len(cluster_sizes) != k:
-            raise ValueError(f"KMeans produjo {len(cluster_sizes)} clusters para k={k}.")
-        scaled_features = pipeline.named_steps["scaler"].transform(features)
-        metrics = {
-            "inertia": float(pipeline.named_steps["kmeans"].inertia_),
-            "silhouette_score": float(silhouette_score(scaled_features, labels)),
-            "calinski_harabasz_score": float(
-                calinski_harabasz_score(scaled_features, labels)
-            ),
-            "davies_bouldin_score": float(davies_bouldin_score(scaled_features, labels)),
-        }
-        if not np.isfinite(list(metrics.values())).all():
-            raise ValueError(f"KMeans produjo metricas no finitas para k={k}.")
-        rows.append(
-            {
-                "k": k,
-                **metrics,
-                "min_cluster_size": int(cluster_sizes.min()),
-                "max_cluster_size": int(cluster_sizes.max()),
-            }
-        )
+    rows = [
+        evaluate_kmeans_candidate(features, k, random_seed, n_init)[0]
+        for k in range(k_min, k_max + 1)
+    ]
     return pd.DataFrame(rows).sort_values("k", ignore_index=True)
+
+
+def evaluate_kmeans_candidate(
+    features: pd.DataFrame,
+    k: int,
+    random_seed: int = RANDOM_SEED,
+    n_init: int = N_INIT,
+) -> tuple[dict[str, int | float], Pipeline, np.ndarray]:
+    """Fit and score one KMeans configuration with the shared P3 protocol."""
+    _validate_k_range(k, k, len(features))
+    values = features.to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("La matriz de features debe ser finita y no contener faltantes.")
+
+    pipeline = build_pipeline(k, random_seed, n_init)
+    fit_start = time.perf_counter()
+    labels = pipeline.fit_predict(features)
+    fit_seconds = time.perf_counter() - fit_start
+    cluster_sizes = pd.Series(labels).value_counts()
+    if len(cluster_sizes) != k:
+        raise ValueError(f"KMeans produjo {len(cluster_sizes)} clusters para k={k}.")
+
+    predict_start = time.perf_counter()
+    predicted_labels = pipeline.predict(features)
+    predict_seconds = time.perf_counter() - predict_start
+    if not np.array_equal(labels, predicted_labels):
+        raise ValueError("KMeans no reprodujo las etiquetas al predecir los datos de ajuste.")
+
+    scaled_features = pipeline.named_steps["scaler"].transform(features)
+    metrics: dict[str, int | float] = {
+        "k": k,
+        "inertia": float(pipeline.named_steps["kmeans"].inertia_),
+        "silhouette_score": float(silhouette_score(scaled_features, labels)),
+        "calinski_harabasz_score": float(
+            calinski_harabasz_score(scaled_features, labels)
+        ),
+        "davies_bouldin_score": float(davies_bouldin_score(scaled_features, labels)),
+        "min_cluster_size": int(cluster_sizes.min()),
+        "max_cluster_size": int(cluster_sizes.max()),
+        "n_stations": len(features),
+        "fit_seconds": fit_seconds,
+        "predict_seconds": predict_seconds,
+    }
+    if not np.isfinite(list(metrics.values())).all():
+        raise ValueError(f"KMeans produjo metricas no finitas para k={k}.")
+    return metrics, pipeline, np.asarray(labels, dtype=int)
 
 
 def fit_final_pipeline(
