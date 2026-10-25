@@ -63,6 +63,10 @@ def main(
         str, typer.Option(help="k final de P3 (obligatorio para p3). Vacio si no aplica.")
     ] = "",
     with_mlflow: Annotated[str, typer.Option(help="true o false: registrar en MLflow.")] = "true",
+    tuned_json: Annotated[
+        str,
+        typer.Option(help="P2: hiperparametros del ganador (clave=valor;clave=valor)."),
+    ] = "",
 ) -> None:
     """Entrena o evalua la pregunta indicada y registra los runs en MLflow."""
     question = question.strip().lower()
@@ -88,6 +92,7 @@ def main(
             output_dir=output_dir,
             final_model=model,
             with_mlflow=mlflow_on,
+            tuned_json=tuned_json,
         )
         return
 

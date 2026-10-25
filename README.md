@@ -344,20 +344,27 @@ Desde la raíz del repositorio:
 # Ingesta reproducible (descarga o reutiliza los CSV, escribe Parquet y el manifiesto)
 mlflow run . -e ingest
 
+# Champion de P2 (features v2, hiperparametros del ganador de la busqueda).
+# Los hiperparametros van como clave=valor separados por ';' (sin espacios ni comillas).
+P2_FEATURE_SET=v2 mlflow run . -e train -P question=p2 -P model=hist_gb \
+  -P tuned_json=learning_rate=0.03\;max_iter=600\;max_leaf_nodes=15\;min_samples_leaf=100
+
 # Entrenamiento por pregunta: question = p1 | p2 | p3
 mlflow run . -e train -P question=p2 -P model=hist_gb
 mlflow run . -e train -P question=p1
 mlflow run . -e train -P question=p3 -P final_k=FINAL_K
 
 # Busqueda anidada de hiperparametros de P2 (run padre + un run hijo por combinacion)
-mlflow run . -e search
+mlflow run . -e search_p2
+mlflow run . -e search_p2 -P register_best=true
 
 # Busqueda anidada P3; register_best es false por defecto
 mlflow run . -e search_p3 --env-manager=local
 ```
 
-Los parámetros vacíos o no declarados usan el valor de `config.py`. `search` y `train` de P1/P2 usan
-la partición de validación para elegir; P3 es clustering exploratorio, sin holdout temporal.
+Los parámetros vacíos o no declarados usan el valor de `config.py`. `search_p2` y `train` solo usan
+la partición de validación para elegir; la prueba se abre una sola vez por pregunta. P3 es clustering
+exploratorio, sin holdout temporal.
 
 ### 3. Esquema del Model Registry
 
@@ -366,24 +373,30 @@ Cada modelo final se registra con el nombre `mibici-equipo49-<pregunta>-<tema>` 
 
 | Modelo registrado | Pregunta | Estado | Alias de producción | Alias de comparación |
 |---|---|---|---|---|
-| `mibici-equipo49-p2-riesgo-hist_gb` | P2 | Registrado por `train -P question=p2` con `--final-model hist_gb` | `champion` | `challenger` (opcional) |
-| `mibici-equipo49-p2-riesgo-logistica` | P2 | Registrado si se entrena con `--final-model logistica` | `champion` si gana en validación | `challenger` |
+| `mibici-equipo49-p2-riesgo` | P2 | Versión registrada por `train -P question=p2` (run final) | `champion` | `challenger` (opcional) |
 | `mibici-equipo49-p1-demanda` | P1 | Pendiente: P1 es solo baselines fijados, sin modelo registrado | n/a | n/a |
-| `mibici-equipo49-p3-grupos` | P3 | Código listo; registro real pendiente de ejecución manual | `champion` (pendiente) | `challenger` (opcional) |
+| `mibici-equipo49-p3-grupos` | P3 | Registrado con `search_p3 -P register_best=true` | `champion` | n/a |
 
-Asignar el alias después de revisar la validación (ejemplo P2):
-
-```python
-from mlflow import MlflowClient
-client = MlflowClient(tracking_uri="sqlite:///mlflow.db")
-client.set_registered_model_alias("mibici-equipo49-p2-riesgo-hist_gb", "champion", version="1")
-```
+El nombre es único por pregunta (igual que P3). El modelo concreto (`hist_gb`, `logistica`,
+etc.) queda en la etiqueta `model_family` y en el run de origen, no en el nombre. La asignación
+del alias se hace en código con `mibici_ml.modeling.registry_p2.assign_p2_alias`, después de
+validar la inferencia con `validate_p2_model_inference`.
 
 Cargar el modelo por alias, sin depender de un número de versión:
 
 ```python
 import mlflow.sklearn
-model = mlflow.sklearn.load_model("models:/mibici-equipo49-p2-riesgo-hist_gb@champion")
+model = mlflow.sklearn.load_model("models:/mibici-equipo49-p2-riesgo@champion")
+```
+
+**Contrato de puntuación de P2.** Un champion de riesgo se usa con `predict_proba` y el umbral
+fijado en validación, no con `predict`. `pyfunc.predict` devuelve la clase 0/1 con corte 0.5, que
+para un evento raro casi siempre da 0. El umbral del champion está en la métrica `val_threshold`
+del run de origen (0.2002). Las columnas de entrada deben ser `float` (la firma las declara así).
+
+```python
+proba = model.predict_proba(X[feature_columns].astype(float).to_numpy())[:, 1]
+riesgo = proba >= 0.200205  # umbral de validacion del run
 ```
 
 Cada versión conserva su **linaje**: el run de origen (parámetros, métricas, etiquetas

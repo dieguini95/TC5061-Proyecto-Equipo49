@@ -23,9 +23,10 @@ entry_points:
       final_k: {type: string, default: "", description: "P3: k final elegido tras evaluar (obligatorio para p3)."}
       output_dir: {type: string, default: "/tmp/mibici-runs", description: "Directorio de artefactos del run. Por defecto temporal para no sobrescribir reports/tables versionado."}
       with_mlflow: {type: string, default: "true", description: "true o false: registrar en MLflow."}
-    command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow}"
+      tuned_json: {type: string, default: "", description: "P2: hiperparametros del ganador como clave=valor separados por ';' (sin espacios). Vacio = defaults."}
+    command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow} --tuned-json {tuned_json}"
 
-  search:
+  search_p2:
     # Busqueda anidada de P2: un run padre y un hijo por combinacion. Solo validacion.
     parameters: {}
     command: "python -m mibici_ml.modeling.search"

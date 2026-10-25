@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import mlflow
 from mlflow import MlflowClient
 import numpy as np
 import pandas as pd
@@ -9,6 +10,7 @@ import pytest
 
 from mibici_ml.config import P2_HORIZON_HOURS
 from mibici_ml.features import (
+    P2_FEATURE_COLUMNS,
     build_p2_features,
     build_p2_hourly_flows,
     build_p2_station_day_panel,
@@ -19,6 +21,7 @@ from mibici_ml.modeling.risk import (
     build_model,
     evaluate_all,
     load_verified_manifest,
+    _stage_of_work,
     log_p2_run,
     persistence_scores,
     precision_at_k,
@@ -82,6 +85,18 @@ def _write_manifest(root, *, trip_hash_ok: bool) -> tuple:
     manifest_path = root / "data_manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     return manifest_path, processed
+
+
+def _features_for_active_set(panel: pd.DataFrame) -> pd.DataFrame:
+    """Features como las arma el pipeline: v1, mas las columnas v2 si P2_FEATURE_SET=v2."""
+    from mibici_ml.features import P2_FEATURE_COLUMNS_V2, add_p2_v2_features
+
+    features = build_p2_features(panel)
+    if FEATURE_COLUMNS == P2_FEATURE_COLUMNS_V2:
+        v2 = add_p2_v2_features(panel)
+        extra = [c for c in P2_FEATURE_COLUMNS_V2 if c not in features.columns]
+        features = pd.concat([features, v2[extra].reset_index(drop=True)], axis=1)
+    return features
 
 
 def test_build_p2_hourly_flows_counts_departures_and_arrivals_by_hour():
@@ -191,14 +206,14 @@ def test_features_do_not_depend_on_future_rows():
     feats_b = build_p2_features(altered)
     cut = 20
     pd.testing.assert_frame_equal(
-        feats_a.loc[:cut, list(FEATURE_COLUMNS)].reset_index(drop=True),
-        feats_b.loc[:cut, list(FEATURE_COLUMNS)].reset_index(drop=True),
+        feats_a.loc[:cut, list(P2_FEATURE_COLUMNS)].reset_index(drop=True),
+        feats_b.loc[:cut, list(P2_FEATURE_COLUMNS)].reset_index(drop=True),
     )
 
 
 def test_feature_columns_match_declared_contract():
     feats = build_p2_features(_feature_panel())
-    assert set(FEATURE_COLUMNS).issubset(feats.columns)
+    assert set(P2_FEATURE_COLUMNS).issubset(feats.columns)
 
 
 def test_temporal_masks_are_disjoint_and_ordered():
@@ -275,9 +290,15 @@ def test_evaluate_all_runs_on_synthetic_panel_without_test_leak():
             "flujo_acumulado": 0.0,
         }
     )
-    features = build_p2_features(panel)
+    features = _features_for_active_set(panel)
     metrics, context, _ = evaluate_all(panel, features, random_seed=7)
-    assert set(metrics["modelo"]) == {"mayoritaria", "persistencia", "logistica", "hist_gb"}
+    assert set(metrics["modelo"]) == {
+        "mayoritaria",
+        "persistencia",
+        "logistica",
+        "hist_gb",
+        "extra_trees",
+    }
     assert all("test_" not in column for column in metrics.columns)
     assert context["masks"]["test"].sum() > 0
 
@@ -352,5 +373,119 @@ def test_log_p2_run_writes_tags_metrics_and_manifest_artifact(tmp_path):
     assert run.data.params["data_version"] == "abc123"
     assert run.data.params["horizon_hours"] == str(P2_HORIZON_HOURS)
     assert run.data.metrics["val_pr_auc"] == pytest.approx(0.5)
-    artifact_paths = {a.path for a in client.list_artifacts(run_id, "reproducibility")}
-    assert "reproducibility/data_manifest.json" in artifact_paths
+    artifact_paths = {a.path for a in client.list_artifacts(run_id, "data")}
+    assert "data/data_manifest.json" in artifact_paths
+    assert "data/p2_calidad_datos.csv" in artifact_paths
+    assert "config/run_config.json" in {a.path for a in client.list_artifacts(run_id, "config")}
+    assert run.data.tags["stage_of_work"] == "candidate"
+    assert run.data.tags["model_family"] == "baseline"
+
+
+def test_log_p2_run_logs_signature_input_and_plots_subfolder(tmp_path):
+    from sklearn.dummy import DummyClassifier
+
+    tracking_uri = f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}"
+    features = pd.DataFrame({col: np.arange(40, dtype=float) % 5 for col in FEATURE_COLUMNS})
+    labels = np.tile([0, 1], 20)
+    model = DummyClassifier(strategy="prior").fit(features, labels)
+    plot = tmp_path / "p2_curva_pr.png"
+    plot.write_bytes(b"png")
+    quality = pd.DataFrame(
+        [
+            {
+                "viajes_validos": 1,
+                "estacion_dia_no_factibles": 0,
+                "pct_estacion_dia_no_factibles": 0.0,
+                "filas_panel_modelado": 40,
+                "tasa_positivos_panel": 0.5,
+            }
+        ]
+    )
+    run_id = log_p2_run(
+        run_name="P2-sig-test",
+        run_type="model_selection_validation",
+        model_name="hist_gb",
+        random_seed=1,
+        params_extra={"split_scope": "validation_only"},
+        metrics={"val_pr_auc": 0.1},
+        quality=quality,
+        artifacts={"curva_pr": plot},
+        model=model,
+        temporal_holdout=False,
+        manifest={"data_version": "abc123", "trips": [], "stations": {}},
+        experiment_name="test-p2-sig",
+        tracking_uri=tracking_uri,
+        features=features,
+    )
+    client = MlflowClient(tracking_uri=tracking_uri)
+    run = client.get_run(run_id)
+    assert run.data.tags["model_family"] == "gradient_boosting"
+    assert run.data.tags["stage_of_work"] == "candidate"
+    assert "plots/p2_curva_pr.png" in {a.path for a in client.list_artifacts(run_id, "plots")}
+    model_info = client.list_artifacts(run_id, "p2_hist_gb")
+    assert model_info, "el modelo debe quedar guardado"
+    loaded = mlflow.pyfunc.load_model(f"runs:/{run_id}/p2_hist_gb")
+    assert loaded.metadata.signature is not None
+    # La firma refleja exactamente las columnas con que se entreno (set activo).
+    assert list(loaded.metadata.signature.inputs.input_names()) == list(FEATURE_COLUMNS)
+
+
+def test_search_stage_of_work_tag_is_search():
+    assert _stage_of_work("search_candidate") == "search"
+    assert _stage_of_work("final_test") == "final"
+
+
+def test_build_model_supports_l1_logistic_and_extra_trees():
+    l1 = build_model("logistica", random_seed=1, params={"C": 1.0, "penalty": "l1"})
+    assert l1.named_steps["clf"].solver == "liblinear"
+    assert l1.named_steps["clf"].penalty == "l1"
+    trees = build_model("extra_trees", random_seed=1, params={"min_samples_leaf": 20})
+    assert trees.n_estimators == 300
+    assert trees.min_samples_leaf == 20
+
+
+def test_v2_features_do_not_depend_on_future_rows():
+    from mibici_ml.features import P2_FEATURE_COLUMNS_V2, add_p2_v2_features
+
+    base = build_p2_features(_feature_panel())
+    base["inventario"] = 5.0
+    base["day"] = pd.to_datetime(base["ts"]).dt.normalize()
+    altered = base.copy()
+    altered.loc[25:, ["salidas", "llegadas", "flujo_acumulado", "inventario"]] = 999
+    v2_a = add_p2_v2_features(base)
+    v2_b = add_p2_v2_features(altered)
+    cut = 20
+    pd.testing.assert_frame_equal(
+        v2_a.loc[:cut, list(P2_FEATURE_COLUMNS_V2)].reset_index(drop=True),
+        v2_b.loc[:cut, list(P2_FEATURE_COLUMNS_V2)].reset_index(drop=True),
+    )
+
+
+def test_feature_set_v1_is_default_and_unchanged():
+    from mibici_ml.features import P2_FEATURE_COLUMNS
+    from mibici_ml.modeling import risk
+
+    assert risk.FEATURE_SETS["v1"] == P2_FEATURE_COLUMNS
+    assert len(P2_FEATURE_COLUMNS) == 11
+
+
+def test_parse_tuned_handles_numbers_and_empty_items():
+    from mibici_ml.modeling.risk import parse_tuned
+
+    assert parse_tuned("learning_rate=0.03;max_iter=600;;max_leaf_nodes=15") == {
+        "learning_rate": 0.03,
+        "max_iter": 600,
+        "max_leaf_nodes": 15,
+    }
+
+
+def test_risk_cli_registers_evaluate_and_run_commands():
+    from typer.testing import CliRunner
+
+    from mibici_ml.modeling import risk
+
+    runner = CliRunner()
+    result = runner.invoke(risk.app, ["--help"])
+    assert result.exit_code == 0
+    assert "evaluate" in result.output
+    assert "run" in result.output

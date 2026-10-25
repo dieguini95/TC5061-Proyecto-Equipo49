@@ -27,7 +27,6 @@ from mibici_ml.config import (
     P2_SEARCH_GRID,
     RANDOM_SEED,
 )
-from mibici_ml.features import P2_FEATURE_COLUMNS
 from mibici_ml.modeling import risk, train
 
 app = typer.Typer(no_args_is_help=True, help="Busqueda anidada de hiperparametros (P2).")
@@ -46,7 +45,7 @@ def _fit_score_validation(
     model: Any, features: pd.DataFrame, panel: pd.DataFrame, labels: np.ndarray, masks: dict
 ) -> dict[str, float]:
     """Ajusta en entrenamiento y mide validacion (sin abrir prueba)."""
-    x_all = features[list(P2_FEATURE_COLUMNS)].to_numpy(dtype=float)
+    x_all = features[list(risk.FEATURE_COLUMNS)].to_numpy(dtype=float)
     model.fit(x_all[masks["train"]], labels[masks["train"]])
     val_scores = risk._positive_proba(model, x_all[masks["val"]])
     threshold = risk.best_f1_threshold(labels[masks["val"]], val_scores)
@@ -116,6 +115,7 @@ def search_command(
                     manifest=manifest,
                     tracking_uri=tracking_uri,
                     nested=True,
+                    features=features.loc[masks["val"]],
                 )
                 logger.info(
                     "Candidato {} {} -> val_pr_auc={:.4f}",

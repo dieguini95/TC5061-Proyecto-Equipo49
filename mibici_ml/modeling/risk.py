@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -30,7 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -64,6 +65,8 @@ from mibici_ml.config import (
 from mibici_ml.dataset import _data_version
 from mibici_ml.features import (
     P2_FEATURE_COLUMNS,
+    P2_FEATURE_COLUMNS_V2,
+    add_p2_v2_features,
     build_p2_features,
     build_p2_hourly_flows,
     build_p2_station_day_panel,
@@ -71,14 +74,22 @@ from mibici_ml.features import (
 
 app = typer.Typer(no_args_is_help=True, help="Clasificacion de riesgo P2 para estaciones MiBici.")
 
-MODEL_NAMES = ("mayoritaria", "persistencia", "logistica", "hist_gb")
-CANDIDATE_NAMES = ("logistica", "hist_gb")
-FEATURE_COLUMNS = P2_FEATURE_COLUMNS
+MODEL_NAMES = ("mayoritaria", "persistencia", "logistica", "hist_gb", "extra_trees")
+CANDIDATE_NAMES = ("logistica", "hist_gb", "extra_trees")
+# Conjunto activo de features. "v1" reproduce Etapa 1; "v2" agrega estado observado.
+# Se elige con la variable de entorno P2_FEATURE_SET (por defecto v1, sin cambios).
+FEATURE_SETS = {"v1": P2_FEATURE_COLUMNS, "v2": P2_FEATURE_COLUMNS_V2}
+ACTIVE_FEATURE_SET = os.environ.get("P2_FEATURE_SET", "v1")
+if ACTIVE_FEATURE_SET not in FEATURE_SETS:
+    raise ValueError(f"P2_FEATURE_SET debe ser uno de: {', '.join(FEATURE_SETS)}.")
+FEATURE_COLUMNS = FEATURE_SETS[ACTIVE_FEATURE_SET]
 N_TOP_K_MIN = 1
 # HistGradientBoosting usa TreePredictor, que MLflow marca como tipo no confiable (skops).
 # El modelo se entrena localmente en este repo, asi que lo permitimos solo para este tipo.
 SKOPS_TRUSTED_TYPES = [
     "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
+    # Almacenamiento de nodos de los arboles de ExtraTrees (mismo motivo que TreePredictor).
+    "sklearn.tree._tree.Tree",
 ]
 
 
@@ -199,6 +210,11 @@ def build_modeling_frame(
     flows = build_p2_hourly_flows(trips)
     panel, bounds = build_p2_station_day_panel(flows, capacities)
     features = build_p2_features(panel)
+    if ACTIVE_FEATURE_SET == "v2":
+        # Estado observado y tendencia: usan el inventario del panel, sin mirar al futuro.
+        v2 = add_p2_v2_features(panel)
+        extra_cols = [c for c in P2_FEATURE_COLUMNS_V2 if c not in features.columns]
+        features = pd.concat([features, v2[extra_cols].reset_index(drop=True)], axis=1)
     return panel, features, bounds, capacities, trips
 
 
@@ -251,6 +267,8 @@ def build_model(name: str, random_seed: int, params: dict[str, Any] | None = Non
                         class_weight="balanced",
                         max_iter=extra.pop("max_iter", 1000),
                         random_state=random_seed,
+                        # L1 requiere liblinear; lbfgs solo admite L2.
+                        solver="liblinear" if extra.get("penalty") == "l1" else "lbfgs",
                         **extra,
                     ),
                 ),
@@ -258,6 +276,13 @@ def build_model(name: str, random_seed: int, params: dict[str, Any] | None = Non
         )
     if name == "hist_gb":
         return HistGradientBoostingClassifier(random_state=random_seed, **extra)
+    if name == "extra_trees":
+        return ExtraTreesClassifier(
+            class_weight="balanced_subsample",
+            random_state=random_seed,
+            n_jobs=-1,
+            **{"n_estimators": 300, **extra},
+        )
     raise ValueError(f"Modelo no soportado para ajuste: {name}")
 
 
@@ -332,8 +357,13 @@ def fit_and_score(
     panel: pd.DataFrame,
     masks: dict[str, np.ndarray],
     random_seed: int,
+    hyperparams: dict[str, Any] | None = None,
 ) -> tuple[dict[str, float], dict[str, np.ndarray], Any]:
-    """Ajusta un modelo en entrenamiento y regresa puntajes de validacion y prueba."""
+    """Ajusta un modelo en entrenamiento y regresa puntajes de validacion y prueba.
+
+    ``hyperparams`` sobrescribe los hiperparametros del modelo (p. ej. el ganador de la
+    busqueda); sin el, se usan los valores por defecto de sklearn.
+    """
     x_all = features[list(FEATURE_COLUMNS)].to_numpy(dtype=float)
     ts = panel["ts"]
     if name == "persistencia":
@@ -342,7 +372,7 @@ def fit_and_score(
         model = None
         threshold = 0.5
     else:
-        model = build_model(name, random_seed)
+        model = build_model(name, random_seed, hyperparams)
         model.fit(x_all[masks["train"]], labels[masks["train"]])
         scores = {
             "val": _positive_proba(model, x_all[masks["val"]]),
@@ -394,14 +424,24 @@ def plot_pr_curves(
 
 
 def evaluate_all(
-    panel: pd.DataFrame, features: pd.DataFrame, random_seed: int
+    panel: pd.DataFrame,
+    features: pd.DataFrame,
+    random_seed: int,
+    tuned: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any], dict[str, tuple[np.ndarray, np.ndarray]]]:
-    """Ajusta los 4 modelos y devuelve metricas de validacion, modelos y puntajes."""
+    """Ajusta los modelos y devuelve metricas de validacion, modelos y puntajes.
+
+    ``tuned`` mapea nombre de modelo a hiperparametros del ganador de la busqueda. Solo
+    esos modelos usan los hiperparametros indicados; el resto queda con sus defaults.
+    """
     labels = panel["label"].to_numpy()
     masks = temporal_masks(panel)
+    tuned = tuned or {}
     rows, models, val_scores = [], {}, {}
     for name in MODEL_NAMES:
-        metrics, scores, model = fit_and_score(name, features, labels, panel, masks, random_seed)
+        metrics, scores, model = fit_and_score(
+            name, features, labels, panel, masks, random_seed, hyperparams=tuned.get(name)
+        )
         rows.append({"modelo": name, **metrics})
         models[name] = model
         val_scores[name] = (labels[masks["val"]], scores["val"])
@@ -449,6 +489,60 @@ def get_git_commit_and_dirty() -> tuple[str, bool]:
     return commit, dirty
 
 
+MODEL_FAMILY = {
+    "mayoritaria": "baseline",
+    "persistencia": "baseline",
+    "logistica": "linear",
+    "hist_gb": "gradient_boosting",
+    "extra_trees": "tree_ensemble",
+}
+
+
+def _stage_of_work(run_type: str) -> str:
+    """Etapa del trabajo para filtrar en la UI: baseline, search, candidate o final."""
+    return {
+        "search_candidate": "search",
+        "model_selection_validation": "candidate",
+        "final_test": "final",
+    }.get(run_type, "baseline")
+
+
+def _signature_and_example(
+    model: Any, features: pd.DataFrame | None
+) -> tuple[Any, pd.DataFrame | None]:
+    """Firma y ejemplo de entrada con las columnas reales de P2 (sin ids ni viajes).
+
+    Usa pocas filas de la particion de validacion; si no hay features, no hay firma.
+    """
+    if features is None or features.empty:
+        return None, None
+    from mlflow.models import infer_signature
+
+    example = features[list(FEATURE_COLUMNS)].head(5).astype(float).reset_index(drop=True)
+    proba = _positive_proba(model, example.to_numpy())
+    signature = infer_signature(example, pd.DataFrame({"riesgo_prob": proba}))
+    return signature, example
+
+
+def _plot_confusion(
+    labels: np.ndarray, scores: np.ndarray, threshold: float, output_path: Path
+) -> Path:
+    """Matriz de confusion con el umbral fijado en validacion."""
+    from sklearn.metrics import ConfusionMatrixDisplay
+
+    predictions = (scores >= threshold).astype("int64")
+    figure, axis = plt.subplots(figsize=(4.5, 4))
+    ConfusionMatrixDisplay.from_predictions(
+        labels, predictions, display_labels=["sin riesgo", "riesgo"], ax=axis, colorbar=False
+    )
+    axis.set_title(f"Matriz de confusion (umbral {threshold:.3f})")
+    figure.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=200)
+    plt.close(figure)
+    return output_path
+
+
 def log_p2_run(
     *,
     run_name: str,
@@ -466,12 +560,19 @@ def log_p2_run(
     tracking_uri: str = MLFLOW_TRACKING_URI,
     registered_model_name: str | None = None,
     nested: bool = False,
+    features: pd.DataFrame | None = None,
+    train_frame: pd.DataFrame | None = None,
 ) -> str:
     """Registra un run de P2 en MLflow y regresa su ID.
 
-    Etiquetas: equipo, pregunta, tipo de run, commit y estado del arbol. Parametros:
-    ventanas, semilla, horizonte y ``data_version``. Sin datos a nivel viaje ni
-    identificadores de usuario.
+    Etiquetas: equipo, pregunta, tipo de run, etapa, familia de modelo, commit y estado
+    del arbol. Parametros: ventanas, semilla, horizonte y ``data_version``. Sin datos a
+    nivel viaje ni identificadores de usuario.
+
+    Artefactos por subcarpeta: ``plots/`` (curvas y matriz de confusion), ``data/``
+    (manifiesto y calidad) y ``config/`` (parametros efectivos). El modelo se guarda con
+    firma y ``input_example``. ``train_frame`` (opcional) se registra con
+    ``mlflow.log_input`` solo como metadatos del conjunto de entrenamiento.
 
     ``nested`` anida el run bajo el run activo (busqueda). ``registered_model_name``
     registra el modelo en el Model Registry (solo para el modelo final).
@@ -504,6 +605,8 @@ def log_p2_run(
         "team": "equipo49",
         "question": "P2",
         "run_type": run_type,
+        "model_family": MODEL_FAMILY.get(model_name, "other"),
+        "stage_of_work": _stage_of_work(run_type),
         "data_scope": "dataset_py_processed_12m",
         "temporal_holdout": str(temporal_holdout).lower(),
         "limitation": "approx_inventory_from_trips_only",
@@ -530,15 +633,34 @@ def log_p2_run(
             mlflow.log_params({k: str(v) for k, v in params.items()})
             mlflow.log_metrics({k: float(v) for k, v in metrics.items() if np.isfinite(v)})
             mlflow.set_tags(tags)
-            mlflow.log_artifact(str(manifest_copy), artifact_path="reproducibility")
+            # Subcarpetas: data/ (manifiesto y calidad), config/ (parametros), plots/ (figuras).
+            mlflow.log_artifact(str(manifest_copy), artifact_path="data")
+            mlflow.log_text(quality.to_csv(index=False), artifact_file="data/p2_calidad_datos.csv")
+            mlflow.log_dict(
+                {"params": params, "metrics": metrics, "tags": tags},
+                artifact_file="config/run_config.json",
+            )
             for artifact_path in artifacts.values():
-                mlflow.log_artifact(str(artifact_path))
+                subfolder = "plots" if Path(artifact_path).suffix == ".png" else "data"
+                if Path(artifact_path).name.startswith("p2_importancia"):
+                    subfolder = "plots"
+                mlflow.log_artifact(str(artifact_path), artifact_path=subfolder)
+            if train_frame is not None and not train_frame.empty:
+                from mlflow.data import from_pandas
+
+                dataset = from_pandas(
+                    train_frame, source=f"mibici-p2-{config.TRAIN_START}-{config.TRAIN_END}"
+                )
+                mlflow.log_input(dataset, context="training")
             if model is not None:
+                signature, example = _signature_and_example(model, features)
                 mlflow_sklearn.log_model(
                     model,
                     name=f"p2_{model_name}",
                     skops_trusted_types=SKOPS_TRUSTED_TYPES,
                     registered_model_name=registered_model_name,
+                    signature=signature,
+                    input_example=example,
                 )
             return run.info.run_id
 
@@ -586,6 +708,66 @@ def evaluate_command(
     logger.success("Evaluacion P2 (solo validacion) guardada en {}", output_dir)
 
 
+def parse_tuned(text: str) -> dict[str, Any]:
+    """Convierte ``'learning_rate=0.03;max_iter=600'`` en un dict con tipos numericos.
+
+    Formato sin espacios ni comillas para pasarlo por ``mlflow run``. Los valores se
+    interpretan como int, float o cadena, en ese orden.
+    """
+    params: dict[str, Any] = {}
+    for item in text.split(";"):
+        item = item.strip()
+        if not item:
+            continue
+        if "=" not in item:
+            raise typer.BadParameter(f"Parametro mal formado: {item!r} (usa clave=valor).")
+        key, raw = item.split("=", 1)
+        value: Any = raw.strip()
+        for cast in (int, float):
+            try:
+                value = cast(value)
+                break
+            except ValueError:
+                continue
+        params[key.strip()] = value
+    return params
+
+
+def _train_metadata(features: pd.DataFrame, masks: dict[str, np.ndarray]) -> pd.DataFrame:
+    """Metadatos del conjunto de entrenamiento para ``mlflow.log_input``.
+
+    Solo columnas de features agregadas por tamano y rango (sin filas por viaje ni ids
+    de estacion). Sirve como huella del conjunto, no como copia de los datos.
+    """
+    train = features.loc[masks["train"], list(FEATURE_COLUMNS)].astype(float)
+    summary = train.describe().T[["mean", "std", "min", "max"]].reset_index(names="feature")
+    return summary
+
+
+def _confusion_for(
+    name: str,
+    panel: pd.DataFrame,
+    features: pd.DataFrame,
+    context: dict[str, Any],
+    threshold: float,
+    output_dir: Path,
+    split: str,
+) -> Path:
+    """Matriz de confusion del modelo en la particion indicada con el umbral de validacion."""
+    labels = context["labels"]
+    masks = context["masks"]
+    if name == "persistencia":
+        scores = persistence_scores(panel, labels)[masks[split]]
+    elif name == "mayoritaria":
+        scores = np.zeros(int(masks[split].sum()))
+    else:
+        x_split = features[list(FEATURE_COLUMNS)].to_numpy(dtype=float)[masks[split]]
+        scores = _positive_proba(context["models"][name], x_split)
+    return _plot_confusion(
+        labels[masks[split]], scores, threshold, output_dir / f"p2_matriz_{name}_{split}.png"
+    )
+
+
 @app.command("run")
 def run_command(
     *,
@@ -597,12 +779,20 @@ def run_command(
     ],
     random_seed: Annotated[int, typer.Option(help="Semilla de los modelos.")] = RANDOM_SEED,
     with_mlflow: Annotated[bool, typer.Option(help="Registrar runs en MLflow local.")] = False,
+    tuned_json: Annotated[
+        str,
+        typer.Option(
+            help="Hiperparametros del ganador como clave=valor separados por ';' "
+            "(p. ej. 'learning_rate=0.03;max_iter=600'). Vacio = defaults de sklearn."
+        ),
+    ] = "",
 ) -> None:
     """Registra 4 runs de validacion y 1 run final con metricas de prueba del modelo elegido."""
     if final_model not in CANDIDATE_NAMES:
         raise typer.BadParameter(f"--final-model debe ser uno de: {', '.join(CANDIDATE_NAMES)}.")
+    tuned = {final_model: parse_tuned(tuned_json)} if tuned_json.strip() else {}
     panel, features, quality, manifest = _prepare(manifest_path, processed_dir)
-    metrics, context, val_scores = evaluate_all(panel, features, random_seed)
+    metrics, context, val_scores = evaluate_all(panel, features, random_seed, tuned=tuned)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics.to_csv(output_dir / "p2_metricas_validacion.csv", index=False)
     plot_pr_curves(val_scores, output_dir / "p2_curva_pr.png")
@@ -632,6 +822,9 @@ def run_command(
                 importance_path = output_dir / f"p2_importancia_{name}.csv"
                 importance.to_csv(importance_path, index=False)
                 artifacts["importancia"] = importance_path
+            artifacts["matriz_confusion"] = _confusion_for(
+                name, panel, features, context, float(row["val_threshold"]), output_dir, "val"
+            )
             run_id = log_p2_run(
                 run_name=f"P2-{name}-validacion",
                 run_type="model_selection_validation",
@@ -644,6 +837,8 @@ def run_command(
                 model=model,
                 temporal_holdout=False,
                 manifest=manifest,
+                features=features.loc[context["masks"]["val"]],
+                train_frame=_train_metadata(features, context["masks"]),
             )
             logger.info("Run de validacion {} registrado: {}", name, run_id)
 
@@ -656,19 +851,30 @@ def run_command(
             importance_path = output_dir / f"p2_importancia_{final_model}.csv"
             importance.to_csv(importance_path, index=False)
             artifacts["importancia"] = importance_path
+        artifacts["matriz_confusion"] = _confusion_for(
+            final_model, panel, features, context, threshold, output_dir, "test"
+        )
         run_id = log_p2_run(
             run_name=f"P2-{final_model}-final",
             run_type="final_test",
             model_name=final_model,
             random_seed=random_seed,
-            params_extra={"split_scope": "test_once", "selected_on": "validation"},
+            params_extra={
+                "split_scope": "test_once",
+                "selected_on": "validation",
+                "tuned_hyperparams": ";".join(
+                    f"{k}={v}" for k, v in sorted(tuned.get(final_model, {}).items())
+                ),
+            },
             metrics={k: float(v) for k, v in final_metrics.items() if k != "modelo"},
             quality=quality,
             artifacts=artifacts,
             model=model_obj_final,
             temporal_holdout=True,
             manifest=manifest,
-            registered_model_name=f"{config.P2_REGISTERED_MODEL_PREFIX}-{final_model}",
+            registered_model_name=config.P2_REGISTRY_MODEL_NAME,
+            features=features.loc[context["masks"]["test"]],
+            train_frame=_train_metadata(features, context["masks"]),
         )
         logger.success("Run final P2 ({}) registrado en MLflow: {}", final_model, run_id)
     logger.success("Artefactos P2 guardados en {}", output_dir)

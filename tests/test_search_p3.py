@@ -612,8 +612,10 @@ def test_registration_requires_an_explicit_reviewed_selection(tmp_path):
 def test_mlproject_has_additive_p3_search_and_preserves_p2_search():
     project = yaml.safe_load((P3_INPUT_PATH.parents[2] / "MLproject").read_text(encoding="utf-8"))
     entries = project["entry_points"]
-    assert entries["search"]["command"] == "python -m mibici_ml.modeling.search"
-    assert entries["search"]["parameters"] == {}
+    # P2 search se renombro a search_p2 (paridad con search_p3); debe seguir sin parametros.
+    assert entries["search_p2"]["command"] == "python -m mibici_ml.modeling.search"
+    assert entries["search_p2"]["parameters"] == {}
+    assert "search" not in entries
     p3_search = entries["search_p3"]
     assert "python -m mibici_ml.modeling.search_p3 --input-path" in p3_search["command"]
     assert p3_search["parameters"]["register_best"]["default"] == "false"
