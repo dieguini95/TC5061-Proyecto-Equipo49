@@ -26,7 +26,7 @@ entry_points:
       tuned_json: {type: string, default: "", description: "P2: hiperparametros del ganador como clave=valor separados por ';' (sin espacios). Vacio = defaults."}
     command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow} --tuned-json {tuned_json}"
 
-  search:
+  search_p2:
     # Busqueda anidada de P2: un run padre y un hijo por combinacion. Solo validacion.
     parameters: {}
     command: "python -m mibici_ml.modeling.search"

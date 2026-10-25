@@ -62,7 +62,8 @@ def test_train_p3_requires_final_k(tmp_path):
 
 
 def test_registered_name_uses_config_prefix():
-    assert config.P2_REGISTERED_MODEL_PREFIX == "mibici-equipo49-p2-riesgo"
+    assert config.P2_REGISTRY_MODEL_NAME == "mibici-equipo49-p2-riesgo"
+    assert config.P2_CHAMPION_ALIAS == "champion"
 
 
 def test_tracking_uri_defaults_to_sqlite_project_db(monkeypatch):
