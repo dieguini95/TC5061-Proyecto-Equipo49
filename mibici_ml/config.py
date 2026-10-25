@@ -132,7 +132,9 @@ P2_SEARCH_GRID = {
         "min_samples_leaf": (20, 100),
     },
 }
-P2_REGISTERED_MODEL_PREFIX = "mibici-equipo49-p2-riesgo"
+P2_REGISTRY_MODEL_NAME = "mibici-equipo49-p2-riesgo"  # nombre unico, como P3
+P2_CHAMPION_ALIAS = "champion"
+P2_CHALLENGER_ALIAS = "challenger"
 
 # ---------------------------------------------------------------------------
 # P3: clustering de estaciones por perfil de uso

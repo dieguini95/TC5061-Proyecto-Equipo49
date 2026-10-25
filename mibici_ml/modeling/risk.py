@@ -872,7 +872,7 @@ def run_command(
             model=model_obj_final,
             temporal_holdout=True,
             manifest=manifest,
-            registered_model_name=f"{config.P2_REGISTERED_MODEL_PREFIX}-{final_model}",
+            registered_model_name=config.P2_REGISTRY_MODEL_NAME,
             features=features.loc[context["masks"]["test"]],
             train_frame=_train_metadata(features, context["masks"]),
         )
