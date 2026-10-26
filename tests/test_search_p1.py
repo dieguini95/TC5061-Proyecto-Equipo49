@@ -83,6 +83,19 @@ def test_shared_train_defaults_preserve_other_questions(monkeypatch):
     assert p3_calls[0]["output_dir"] == config.MLFLOW_TRAIN_OUTPUT_DIR
 
 
+def test_windows_projects_empty_arguments(monkeypatch):
+    calls = []
+    monkeypatch.setattr(search_p1, "run_search", lambda **kw: calls.append(kw))
+    runner = CliRunner()
+    result = runner.invoke(search_p1.app, ["--output-dir", '""', "--register-best", "true"])
+    assert result.exit_code == 0, result.output
+    assert calls[-1] == {"output_dir": None, "register_best": True}
+    result = runner.invoke(train.app, ["--question", "p1", "--model", '""', "--output-dir", '""', "--tuned-json", '""'])
+    assert result.exit_code == 0, result.output
+    assert calls[-1]["model"] == calls[-1]["tuned_json"] == ""
+    assert calls[-1]["output_dir"] is None
+
+
 def test_end_to_end_nested_models_artifacts_and_registry(tmp_path, monkeypatch):
     import tempfile
 

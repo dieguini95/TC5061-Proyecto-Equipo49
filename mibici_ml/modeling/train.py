@@ -74,6 +74,11 @@ def main(
 ) -> None:
     """Entrena o evalua la pregunta indicada y registra los runs en MLflow."""
     question = question.strip().lower()
+    # Windows Projects may preserve the quotes around an empty substitution.
+    model, output_dir, final_k, tuned_json = (
+        "" if value in ('""', "''") else value
+        for value in (model, output_dir, final_k, tuned_json)
+    )
     if question not in QUESTIONS:
         raise typer.BadParameter(f"--question debe ser uno de: {', '.join(QUESTIONS)}.")
     if register_best.lower() not in {"true", "false"}:

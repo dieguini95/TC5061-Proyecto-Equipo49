@@ -530,7 +530,8 @@ def main(
     if register_best.lower() not in {"true", "false"}:
         raise typer.BadParameter("register_best debe ser true o false.")
     run_search(
-        output_dir=Path(output_dir) if output_dir else None,
+        # MLflow Projects on Windows can pass a literal pair of quotes for "".
+        output_dir=Path(output_dir) if output_dir not in ("", '""', "''") else None,
         register_best=register_best.lower() == "true",
     )
 
