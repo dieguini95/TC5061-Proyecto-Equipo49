@@ -8,8 +8,9 @@ Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 > (`dataset.py`) y el mismo manifiesto (`data_version`). P1 y P2 tienen runs en MLflow; P3 tiene su baseline
 > exploratorio. Ver la tabla de [estado de la actividad](#estado-de-la-actividad).
 
-> **P1, Etapa 2 (25 de octubre de 2026):** búsqueda local completada con dos baselines y cuatro
-> candidatos, modelo registrado como `champion` y evidencia en la sección de P1. Este estado
+> **Etapa 2 (25 de octubre de 2026):** las tres preguntas tienen un modelo registrado como `champion`
+> en el Model Registry (P1 `mibici-equipo49-p1-demanda`, P2 `mibici-equipo49-p2-riesgo`, P3
+> `mibici-equipo49-p3-grupos`). Los PR #6, #7, #8 y #9 están fusionados en `main`. Este estado
 > complementa el resumen histórico de la Etapa 1.
 
 ## Equipo
@@ -169,7 +170,7 @@ Desde la raíz y en el entorno validado, exportar `MLFLOW_TRACKING_URI` antes de
 el servidor abierto en otra terminal PowerShell:
 
 ```powershell
-$env:MLFLOW_TRACKING_URI = 'http://127.0.0.1:5000'
+$env:MLFLOW_TRACKING_URI = 'http://127.0.0.1:5050'
 mlflow run . -e search_p1 --env-manager=local --experiment-name mibici-equipo49 -P register_best=true
 ```
 
@@ -294,7 +295,7 @@ El baseline produce `p3_metricas_por_k.csv`, `p3_comparacion_k.png`, `p3_asignac
 `p3_calidad_datos.csv`. El alcance es exploratorio: no hay perfiles horarios por estación, holdout
 temporal ni validación de producción. Deberá integrarse posteriormente con la ingesta reproducible.
 
-### Tracking avanzado y Registry P3 (pendiente de ejecución manual)
+### Tracking avanzado y Registry P3 (Etapa 2)
 
 El flujo `search_p3` mantiene **k=5 como baseline histórico** y compara los candidatos **k=3, 4, 6, 7 y 8**.
 Todos usan el mismo CSV, SHA-256, tres features, mediana positiva para capacidad cero, `StandardScaler`,
@@ -443,18 +444,18 @@ El backend es `sqlite:///mlflow.db` en la raíz del repositorio (ignorado por Gi
 con el entorno del proyecto activo:
 
 ```bash
-mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
+mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5050
 ```
 
 En PowerShell (la ruta debe ser absoluta para que `mlflow run` y el servidor usen el mismo archivo):
 
 ```powershell
 $db = (Join-Path (Get-Location).Path 'mlflow.db') -replace '\\', '/'
-mlflow server --backend-store-uri "sqlite:///$db" --host 127.0.0.1 --port 5000
+mlflow server --backend-store-uri "sqlite:///$db" --host 127.0.0.1 --port 5050
 ```
 
-Abrir [http://127.0.0.1:5000](http://127.0.0.1:5000). Para que `mlflow run` escriba en el mismo
-servidor, exportar `MLFLOW_TRACKING_URI=http://127.0.0.1:5000` antes de ejecutar los comandos
+Abrir [http://127.0.0.1:5050](http://127.0.0.1:5050). Para que `mlflow run` escriba en el mismo
+servidor, exportar `MLFLOW_TRACKING_URI=http://127.0.0.1:5050` antes de ejecutar los comandos
 (si no se exporta, escribe directamente en `mlflow.db` mediante `config.py`).
 
 ### 2. Ejecutar los entry points
@@ -546,7 +547,7 @@ del código. Para reproducir, clonar el repositorio, hacer checkout del commit r
 Los runs finales de la Etapa 1 corresponden al commit `52af95c13416705906f0630f058a4c78645a2fbe`, con `git_dirty=false`.
 Las primeras corridas locales se conservan en MLflow; las capturas `P1_mlflow_*.png` muestran esos runs históricos.
 
-Para abrir la interfaz de MLflow sobre el mismo backend, ver *Proyecto MLflow* (servidor en el puerto 5000).
+Para abrir la interfaz de MLflow sobre el mismo backend, ver *Proyecto MLflow* (servidor en el puerto 5050).
 
 ## Flujo de trabajo (GitHub Flow)
 
@@ -567,8 +568,13 @@ Pull requests del proyecto:
 | [#2](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/2) | `feat/p2-risk-mlflow` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
 | [#3](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/3) | `Saul` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
 | [#4](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/4) | `feat/p2-integracion-cierre` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
+| [#5](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/5) | `docs/cierre-final` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
+| [#6](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/6) | `feat/etapa2-mlproject` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
+| [#7](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/7) | `feat/p2-champion` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
+| [#8](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/8) | `feat/p3-advanced-tracking-registry` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
+| [#9](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/9) | `feat/p1-mlflow-etapa2` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
 
-Los cuatro PR están fusionados en `main`. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
+Los nueve PR de la Etapa 1 y 2 están fusionados en `main`. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
 
 Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
 Diego Sánchez (P2 y cierre del repositorio).
@@ -607,10 +613,11 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 | 6 | Experimentos en MLflow | Hecho: runs de P1, P2 y P3 en `mibici-equipo49` |
 | 7 | Capturas de MLflow | Hecho para P1, P2 y P3 (las de P1 también en `reports/figures/P1_mlflow_*.png`) |
 | 8 | Estructura del repositorio (ccds) | Hecho |
-| 9 | Flujo Git y PRs | Hecho: PR #1 a #4 fusionados, cada uno con revisión de otro integrante |
+| 9 | Flujo Git y PRs | Hecho: PR #1 a #9 fusionados, cada uno con revisión de otro integrante |
 | 10 | Ingesta (`dataset.py`) | Hecho: 12 meses, catálogo, Parquet y manifiesto |
 | 11 | Features (`features.py`) | Hecho: P1 y P2 documentados y probados |
-| 12 | README final | Hecho en este PR |
+| 12 | README final | Hecho en este PR (`chore/readme-etapa2-final`) |
+| 13 | Etapa 2: MLflow Project y Model Registry | Hecho: entry points `ingest`, `train`, `search_p1`, `search_p2` y `search_p3`; champion de P1, P2 y P3 registrados |
 
 Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
 se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
