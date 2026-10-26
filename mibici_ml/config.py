@@ -64,6 +64,8 @@ MLFLOW_DB_PATH = PROJ_ROOT / "mlflow.db"
 MLFLOW_TRACKING_URI = os.environ.get(
     "MLFLOW_TRACKING_URI", f"sqlite:///{MLFLOW_DB_PATH.as_posix()}"
 )
+# Conserva el destino historico de train para P2/P3; P1 usa su ruta propia.
+MLFLOW_TRAIN_OUTPUT_DIR = Path("/tmp/mibici-runs")
 
 # Validacion cruzada dentro de entrenamiento (sin shuffle).
 CV_N_SPLITS = 5
@@ -98,6 +100,42 @@ P1_FORECAST_ORIGIN_HOUR = 0
 P1_TIMEZONE = "America/Mexico_City"
 P1_PRIMARY_METRIC = "wape"
 P1_SOURCE_VERSION = "p1-station-hour-v1"
+
+# Etapa 2: misma cohorte y ventanas que los baselines; sin parada aleatoria.
+P1_FEATURE_COLUMNS = (
+    "lag_24",
+    "lag_48",
+    "lag_168",
+    "mean_4weeks",
+    "hour",
+    "day_of_week",
+    "is_weekend",
+)
+P1_MODEL_THREADS = 4
+P1_MODEL_DEFAULTS = {
+    "ridge": {"alpha": 1.0},
+    "hist_poisson": {
+        "learning_rate": 0.08,
+        "max_iter": 120,
+        "max_leaf_nodes": 15,
+        "min_samples_leaf": 40,
+    },
+    "hist_squared": {
+        "learning_rate": 0.08,
+        "max_iter": 120,
+        "max_leaf_nodes": 15,
+        "min_samples_leaf": 40,
+    },
+}
+P1_CANDIDATE_GRID = {
+    "ridge": [{"alpha": 1.0}],
+    "hist_poisson": [{"max_leaf_nodes": 15}, {"max_leaf_nodes": 31}],
+    "hist_squared": [{"max_leaf_nodes": 15}],
+}
+P1_REGISTRY_MODEL_NAME = "mibici-equipo49-p1-demanda"
+P1_CHAMPION_ALIAS = "champion"
+P1_STAGE2_OUTPUT_DIR = PROJ_ROOT / "work" / "p1-etapa2"
+P1_STAGE2_SOURCE_VERSION = "p1-supervised-daily-origin-v2"
 
 # ---------------------------------------------------------------------------
 # P2: clasificacion de riesgo (estacion vacia o llena en las siguientes H horas)

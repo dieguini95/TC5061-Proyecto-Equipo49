@@ -1,6 +1,6 @@
 """Punto de entrada unico de entrenamiento y registro en MLflow.
 
-Despacha la pregunta elegida a su modulo (``demand`` para P1, ``risk`` para P2 y
+Despacha la pregunta elegida a su modulo (``search_p1`` para P1, ``risk`` para P2 y
 ``cluster`` para P3). Los valores por defecto (rutas, ventana, semilla, experimento y
 URI de tracking) viven solo en ``mibici_ml.config``.
 
@@ -25,7 +25,7 @@ import mlflow
 import typer
 
 from mibici_ml import config
-from mibici_ml.modeling import cluster, demand, risk
+from mibici_ml.modeling import cluster, risk
 
 app = typer.Typer(no_args_is_help=True, help="Entrenamiento y registro por pregunta (P1, P2, P3).")
 
@@ -54,42 +54,56 @@ def _release_wrapper_run() -> None:
 def main(
     question: Annotated[str, typer.Option(help="Pregunta del proyecto: p1, p2 o p3.")],
     model: Annotated[
-        str, typer.Option(help="Modelo final de P2: logistica o hist_gb. Vacio en p1 y p3.")
+        str,
+        typer.Option(help="P1: ridge, hist_poisson, hist_squared; vacio = grid. P2: candidato."),
     ] = "",
     output_dir: Annotated[
-        Path, typer.Option(help="Directorio de artefactos del run (no usar reports/tables).")
-    ] = Path("/tmp/mibici-runs"),
+        str, typer.Option(help="Directorio de artefactos; vacio usa config.py por pregunta.")
+    ] = "",
     final_k: Annotated[
         str, typer.Option(help="k final de P3 (obligatorio para p3). Vacio si no aplica.")
     ] = "",
     with_mlflow: Annotated[str, typer.Option(help="true o false: registrar en MLflow.")] = "true",
     tuned_json: Annotated[
         str,
-        typer.Option(help="P2: hiperparametros del ganador (clave=valor;clave=valor)."),
+        typer.Option(help="P1/P2: hiperparametros (clave=valor;clave=valor)."),
     ] = "",
+    register_best: Annotated[
+        str, typer.Option(help="Solo P1: validar y registrar champion local; true o false.")
+    ] = "false",
 ) -> None:
     """Entrena o evalua la pregunta indicada y registra los runs en MLflow."""
     question = question.strip().lower()
     if question not in QUESTIONS:
         raise typer.BadParameter(f"--question debe ser uno de: {', '.join(QUESTIONS)}.")
-    _release_wrapper_run()
+    if register_best.lower() not in {"true", "false"}:
+        raise typer.BadParameter("--register-best debe ser true o false.")
     mlflow_on = _as_bool(with_mlflow)
     logger.info("Pregunta {} | experimento {}", question.upper(), config.EXPERIMENT_NAME)
 
     if question == "p1":
-        demand.main(
-            manifest_path=config.DATA_MANIFEST_PATH,
+        from mibici_ml.modeling.search_p1 import run_search
+
+        run_search(
+            output_dir=Path(output_dir) if output_dir else None,
+            model=model.strip(),
+            tuned_json=tuned_json,
+            register_best=_as_bool(register_best),
             with_mlflow=mlflow_on,
-            tracking_uri=config.MLFLOW_TRACKING_URI,
         )
         return
+
+    if _as_bool(register_best):
+        raise typer.BadParameter("--register-best en train solo aplica a P1.")
+    _release_wrapper_run()
+    run_output = Path(output_dir) if output_dir else config.MLFLOW_TRAIN_OUTPUT_DIR
 
     if question == "p2":
         model = model.strip()
         if model not in P2_MODELS:
             raise typer.BadParameter(f"--model debe ser uno de: {', '.join(P2_MODELS)}.")
         risk.run_command(
-            output_dir=output_dir,
+            output_dir=run_output,
             final_model=model,
             with_mlflow=mlflow_on,
             tuned_json=tuned_json,
@@ -103,7 +117,7 @@ def main(
     if not k_text.isdigit():
         raise typer.BadParameter("--final-k debe ser un entero.")
     cluster.run_command(
-        output_dir=output_dir,
+        output_dir=run_output,
         final_k=int(k_text),
         with_mlflow=mlflow_on,
     )
