@@ -8,10 +8,14 @@ Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 > (`dataset.py`) y el mismo manifiesto (`data_version`). P1 y P2 tienen runs en MLflow; P3 tiene su baseline
 > exploratorio. Ver la tabla de [estado de la actividad](#estado-de-la-actividad).
 
+> **P1, Etapa 2 (25 de octubre de 2026):** búsqueda local completada con dos baselines y cuatro
+> candidatos, modelo registrado como `champion` y evidencia en la sección de P1. Este estado
+> complementa el resumen histórico de la Etapa 1.
+
 ## Equipo
 
 - Daniel Ruán Aguilar
-- Saúl Salgado Ortega — P1: ingesta, variables y baseline de demanda.
+- Saúl Salgado Ortega — P1: ingesta, variables, baseline y experimentación de demanda.
 - Diego Sánchez Hernández
 
 ## Problema y propuesta
@@ -200,6 +204,56 @@ cohort = panel.loc[panel['evaluation_eligible']].head(24)
 X = p1_model_features(cohort).astype(float)
 model = mlflow.pyfunc.load_model('models:/mibici-equipo49-p1-demanda@champion')
 predictions = model.predict(X)
+```
+
+**Resultados locales de P1 (25 de octubre de 2026).** La búsqueda terminó desde `mlflow run`
+con código `0a2fda67daffd25b6844f396162a34d79963afb9`, `git_dirty=false` y la misma versión de datos
+`0f000bd5…`. Se utilizaron 2,160,408 filas de entrenamiento, 629,424 de validación y 336,480 de prueba.
+Los baselines reejecutados reproducen las métricas de Etapa 1 en la misma cohorte, sin reemplazar sus tablas.
+
+| Modelo | MAE validación | WAPE validación (%) | MAE prueba | WAPE prueba (%) |
+|---|---:|---:|---:|---:|
+| Estacional 168 h | 0.928686 | 76.1207 | 1.029693 | 71.0105 |
+| Media de 4 semanas | 0.801140 | 65.6663 | 0.880552 | 60.7254 |
+| Ridge | 0.792657 | 64.9710 | 0.885362 | 61.0570 |
+| HistGB Poisson, 15 hojas | 0.787615 | 64.5577 | 0.880312 | 60.7088 |
+| **HistGB Poisson, 31 hojas** | **0.785154** | **64.3560** | **0.878313** | **60.5709** |
+| HistGB error cuadrático, 15 hojas | 0.786244 | 64.4454 | 0.878222 | 60.5647 |
+
+Se eligió **HistGB Poisson con 31 hojas** por el menor WAPE de validación: mejora relativa del
+**2.00 %** frente a la media de cuatro semanas. La pérdida Poisson modela conteos no negativos;
+la selección se fundamenta en WAPE, coherente con el error de volumen a planear, y se complementa
+con RMSE y sesgo para detectar errores grandes y subestimación sistemática. Superó al baseline tanto
+en julio (WAPE 64.4560 % frente a 66.7240 %) como en agosto (64.2578 % frente a 64.6285 %).
+Esto muestra consistencia entre esos dos meses, sin demostrar estabilidad en otros periodos o semillas.
+
+En prueba la mejora relativa de WAPE se reduce a **0.25 %**, con RMSE **1.695772** y sesgo
+**−0.162842 viajes/h**. La subestimación total sigue siendo aproximadamente 11.23 %, frente a 15.42 %
+del baseline. El candidato cuadrático obtiene un WAPE de prueba marginalmente menor; **no se cambia
+el ganador después de ver septiembre**. La mejora es modesta y no demuestra significancia estadística.
+El ajuste del ganador tomó 4.81 s y la inferencia 1.18 ms por cada 1,000 filas en esta máquina;
+son mediciones de una ejecución, no garantías de latencia. El baseline es más barato y se conserva
+como referencia. Los datos siguen midiendo viajes atendidos; no observan demanda insatisfecha,
+cierres de estaciones ni permiten un servicio en tiempo real sin una fuente actualizada.
+
+La versión **1** de `mibici-equipo49-p1-demanda` tiene el alias **`champion`** y conserva el run
+`a59ee8f97cfe4d26b863dafbf47c4b1f`. Se verificó su carga tanto por versión como por alias con
+`mlflow.sklearn` y `mlflow.pyfunc`, comparando las predicciones con el modelo evaluado. Se usan aliases
+para cambiar el modelo consumido sin fijar un número de versión; la promoción conserva la versión
+anterior y revierte el alias si falla la comprobación posterior. Este es el estado de producción
+del Registry local para la actividad; no implica desplegar una API de predicción.
+
+El coordinador de los seis hijos es `c18b8387d29b422cae876bbee87dcb41`. Los IDs, métricas completas,
+variación temporal y tiempos están en `reports/tables/p1_etapa2_*.csv` y `p1_etapa2_runs.json`;
+las figuras y capturas de MLflow están en `reports/figures/P1_etapa2_*.png`.
+SQLite, los modelos y los artefactos completos permanecen locales y excluidos de Git.
+Validación del código: 170 pruebas verificadas (incluyendo regresiones de P2/P3), Ruff sin errores,
+baselines idénticos a Etapa 1 y carga del champion desde el código archivado en un proceso nuevo.
+
+Para reproducir solamente la configuración elegida, comparándola de nuevo con ambos baselines:
+
+```powershell
+mlflow run . -e train --env-manager=local --experiment-name mibici-equipo49 -P question=p1 -P model=hist_poisson -P "tuned_json=max_leaf_nodes=31;max_iter=120;learning_rate=0.08;min_samples_leaf=40" -P register_best=true
 ```
 
 ### Baseline P3 exploratorio
@@ -479,7 +533,8 @@ Experimento base integrado (paso 6). Configuración base en `mibici_ml/config.py
 - Nombre del experimento: `mibici-equipo49`.
 - Seguimiento local en SQLite (`mlflow.db`, no versionado). Ver la sección *Proyecto MLflow* más abajo.
 - Cada run registra parámetros (ventanas, semilla, horizonte, `data_version`), métricas `val_*` y `test_*`
-  (`test_*` solo en el run final), etiquetas (`team`, `question`, `git_commit`, `git_dirty`, `data_version`)
+  (`test_*` en P1 Etapa 2 se agrega a los seis hijos después de congelar la selección;
+  en P2, solo en el run final), etiquetas (`team`, `question`, `git_commit`, `git_dirty`, `data_version`)
   y artefactos. Ningún dato a nivel de viaje o de usuario se registra.
 
 La ejecución histórica de P1 (Etapa 1) creó `P1-estacional-168h` y `P1-media-4semanas`;
