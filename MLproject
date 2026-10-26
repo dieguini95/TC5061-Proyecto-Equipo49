@@ -19,12 +19,20 @@ entry_points:
   train:
     parameters:
       question: {type: string, description: "Pregunta: p1, p2 o p3."}
-      model: {type: string, default: "", description: "P2: logistica o hist_gb."}
+      model: {type: string, default: "", description: "P1: ridge, hist_poisson o hist_squared; vacio = grid. P2: logistica, hist_gb o extra_trees."}
       final_k: {type: string, default: "", description: "P3: k final elegido tras evaluar (obligatorio para p3)."}
-      output_dir: {type: string, default: "/tmp/mibici-runs", description: "Directorio de artefactos del run. Por defecto temporal para no sobrescribir reports/tables versionado."}
+      output_dir: {type: string, default: "", description: "Directorio de artefactos del run; vacio = config.py (P1 work/p1-etapa2; P2/P3 temporal)."}
       with_mlflow: {type: string, default: "true", description: "true o false: registrar en MLflow."}
-      tuned_json: {type: string, default: "", description: "P2: hiperparametros del ganador como clave=valor separados por ';' (sin espacios). Vacio = defaults."}
-    command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow} --tuned-json {tuned_json}"
+      tuned_json: {type: string, default: "", description: "P1/P2: hiperparametros como clave=valor separados por ';' (sin espacios). Vacio = defaults."}
+      register_best: {type: string, default: "false", description: "Solo P1: registrar y validar champion elegido por validacion."}
+    command: "python -m mibici_ml.modeling.train --question {question} --model {model} --final-k {final_k} --output-dir {output_dir} --with-mlflow {with_mlflow} --tuned-json {tuned_json} --register-best {register_best}"
+
+  search_p1:
+    # Seleccion en validacion; despues evalua test sin reajuste. Registry opcional.
+    parameters:
+      output_dir: {type: string, default: "", description: "Directorio base unico por busqueda; vacio = config.py."}
+      register_best: {type: string, default: "false", description: "true para registrar, validar y asignar champion P1."}
+    command: "python -m mibici_ml.modeling.search_p1 --output-dir {output_dir} --register-best {register_best}"
 
   search_p2:
     # Busqueda anidada de P2: un run padre y un hijo por combinacion. Solo validacion.

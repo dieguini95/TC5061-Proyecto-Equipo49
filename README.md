@@ -1,16 +1,21 @@
 # MiBici: demanda, riesgo de estación y perfiles de uso (TC5061, Equipo 49)
 
-Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**, Etapa 1: propuesta y base reproducible.
+Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**: propuesta y base reproducible (Etapa 1),
+MLflow Project y tracking avanzado (Etapa 2).
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
 > **Estado (18 de octubre de 2026):** `main` contiene P1, P2 y P3 integradas sobre la misma ingesta
 > (`dataset.py`) y el mismo manifiesto (`data_version`). P1 y P2 tienen runs en MLflow; P3 tiene su baseline
 > exploratorio. Ver la tabla de [estado de la actividad](#estado-de-la-actividad).
 
+> **P1, Etapa 2 (25 de octubre de 2026):** búsqueda local completada con dos baselines y cuatro
+> candidatos, modelo registrado como `champion` y evidencia en la sección de P1. Este estado
+> complementa el resumen histórico de la Etapa 1.
+
 ## Equipo
 
 - Daniel Ruán Aguilar
-- Saúl Salgado Ortega — P1: ingesta, variables y baseline de demanda.
+- Saúl Salgado Ortega — P1: ingesta, variables, baseline y experimentación de demanda.
 - Diego Sánchez Hernández
 
 ## Problema y propuesta
@@ -57,7 +62,7 @@ Decisiones y su justificación: ver el documento de la Etapa 1 (`references/`) y
 │   ├── dataset.py  # ingesta, limpieza, Parquet y manifiesto
 │   ├── features.py # panel estación-hora y variables históricas P1
 │   ├── plots.py
-│   └── modeling/   # demand.py (P1), cluster.py (P3) y scaffold compartido
+│   └── modeling/   # demand.py y search_p1.py (P1), cluster.py (P3) y módulos compartidos
 └── tests/          # pruebas (pytest)
 ```
 
@@ -125,8 +130,8 @@ El módulo rechaza horizontes distintos de 24 h, emisiones distintas de las 00:0
 
 MAE mide viajes de error por estación-hora; RMSE penaliza errores grandes; WAPE divide error absoluto
 total entre viajes observados; el sesgo identifica sobre/subestimación. WAPE se registra como razón,
-no como porcentaje de aciertos. PoissonRegressor y HistGradientBoostingRegressor son candidatos
-propuestos para la siguiente iteración; no se les atribuyen resultados de estos baselines.
+no como porcentaje de aciertos. Estos dos baselines corresponden a la Etapa 1; la búsqueda supervisada
+de la Etapa 2 se describe a continuación. No se atribuyen sus resultados históricos a los candidatos nuevos.
 
 El catálogo actual no demuestra aperturas o cierres históricos. La cohorte excluye estaciones sin
 cuatro semanas de historia y reporta cobertura. Los CSV mensuales permiten evaluación retrospectiva;
@@ -134,6 +139,122 @@ una operación diaria requeriría una fuente actualizada. Formulación, condicio
 [`P1_propuesta_y_resultados.md`](references/P1_propuesta_y_resultados.md).
 Exploración: [`1.0-sso-eda-p1.ipynb`](notebooks/1.0-sso-eda-p1.ipynb).
 El documento del equipo actualizado está en [`TC5061_Propuesta_Proyecto_Equipo49.docx`](references/TC5061_Propuesta_Proyecto_Equipo49.docx).
+
+### P1: búsqueda supervisada y Registry (Etapa 2)
+
+`search_p1.py` compara los dos baselines históricos con cuatro configuraciones adicionales. Mantiene
+la granularidad estación-hora, emisión a medianoche, horizonte de 24 horas y el mismo manifiesto de datos.
+
+| Configuración candidata | Hiperparámetros |
+|---|---|
+| Ridge | `alpha=1.0` |
+| HistGradientBoostingRegressor, Poisson | `max_leaf_nodes=15` |
+| HistGradientBoostingRegressor, Poisson | `max_leaf_nodes=31` |
+| HistGradientBoostingRegressor, error cuadrático | `max_leaf_nodes=15` |
+
+Los modelos boosting usan `learning_rate=0.08`, `max_iter=120`, `min_samples_leaf=40` y
+`early_stopping=False`. La semilla es 42 y el cómputo se limita a cuatro hilos. Se aprovechan las
+variables causales de calendario y rezagos; las transformaciones aprendidas se ajustan
+solo con entrenamiento de octubre de 2025 a junio de 2026.
+
+La búsqueda registra un coordinador y runs hijos. Todos se comparan en las mismas filas de validación
+de julio-agosto y con MAE, RMSE, WAPE y sesgo. La selección queda fijada por WAPE de validación,
+desempatando por MAE e identificador de modelo; después se evalúan las seis configuraciones ya fijadas
+en septiembre para la tabla comparativa, sin volver a elegir ni ajustar con prueba.
+Las métricas por mes y día de validación describen variación temporal; no demuestran estabilidad
+multisemilla. También se registran tiempo de ajuste e inferencia, configuración, manifiesto,
+gráficas, modelo con firma y ejemplo de entrada, y linaje al commit y los datos.
+
+Desde la raíz y en el entorno validado, exportar `MLFLOW_TRACKING_URI` antes de ejecutar. Para usar
+el servidor abierto en otra terminal PowerShell:
+
+```powershell
+$env:MLFLOW_TRACKING_URI = 'http://127.0.0.1:5000'
+mlflow run . -e search_p1 --env-manager=local --experiment-name mibici-equipo49 -P register_best=true
+```
+
+`register_best` es `false` por defecto: sin esa opción se comparan los modelos sin promover uno.
+Con `true`, se registra el ganador de validación en `mibici-equipo49-p1-demanda`, incluso si gana
+un baseline. Primero se carga la versión registrada y se comparan sus predicciones con las del modelo
+local; solo tras esa validación se mueve `champion`. El registro conserva run, commit y `data_version`.
+
+`train -P question=p1` sin `model` usa la misma búsqueda. `model=ridge`, `hist_poisson` o
+`hist_squared` limita la comparación a esa configuración y los dos baselines. `tuned_json` acepta
+pares `clave=valor` separados por `;`; PowerShell requiere mantener el argumento entre comillas:
+
+```powershell
+mlflow run . -e train --env-manager=local --experiment-name mibici-equipo49 -P question=p1 -P model=ridge -P "tuned_json=alpha=1.0" -P register_best=false
+```
+
+Cada ejecución escribe en un subdirectorio UUID de `work/p1-etapa2/`, configurable con `output_dir`;
+conserva las tablas y figuras históricas de la Etapa 1. La evidencia agregada revisada de la nueva
+ejecución se conserva en `reports/tables/p1_etapa2_metrics.csv`, `p1_etapa2_runs.json` y
+`reports/figures/P1_etapa2_*.png`. Las métricas e IDs se leen de esa ejecución, no de los baselines históricos.
+
+Tras ejecutar P1 y registrar `champion`, este ejemplo carga el alias para un lote histórico preparado.
+La inferencia recibe las mismas variables causales que entrenamiento, construidas por
+`features.p1_model_features`; el panel debe respetar la disponibilidad de datos a la emisión:
+
+```python
+import mlflow.pyfunc
+from mibici_ml.features import build_station_hour_panel, p1_model_features
+
+panel = build_station_hour_panel()  # Parquet mensuales generados por la ingesta
+cohort = panel.loc[panel['evaluation_eligible']].head(24)
+X = p1_model_features(cohort).astype(float)
+model = mlflow.pyfunc.load_model('models:/mibici-equipo49-p1-demanda@champion')
+predictions = model.predict(X)
+```
+
+**Resultados locales de P1 (25 de octubre de 2026).** La búsqueda terminó desde `mlflow run`
+con código `0a2fda67daffd25b6844f396162a34d79963afb9`, `git_dirty=false` y la misma versión de datos
+`0f000bd5…`. Se utilizaron 2,160,408 filas de entrenamiento, 629,424 de validación y 336,480 de prueba.
+Los baselines reejecutados reproducen las métricas de Etapa 1 en la misma cohorte, sin reemplazar sus tablas.
+
+| Modelo | MAE validación | WAPE validación (%) | MAE prueba | WAPE prueba (%) |
+|---|---:|---:|---:|---:|
+| Estacional 168 h | 0.928686 | 76.1207 | 1.029693 | 71.0105 |
+| Media de 4 semanas | 0.801140 | 65.6663 | 0.880552 | 60.7254 |
+| Ridge | 0.792657 | 64.9710 | 0.885362 | 61.0570 |
+| HistGB Poisson, 15 hojas | 0.787615 | 64.5577 | 0.880312 | 60.7088 |
+| **HistGB Poisson, 31 hojas** | **0.785154** | **64.3560** | **0.878313** | **60.5709** |
+| HistGB error cuadrático, 15 hojas | 0.786244 | 64.4454 | 0.878222 | 60.5647 |
+
+Se eligió **HistGB Poisson con 31 hojas** por el menor WAPE de validación: mejora relativa del
+**2.00 %** frente a la media de cuatro semanas. La pérdida Poisson modela conteos no negativos;
+la selección se fundamenta en WAPE, coherente con el error de volumen a planear, y se complementa
+con RMSE y sesgo para detectar errores grandes y subestimación sistemática. Superó al baseline tanto
+en julio (WAPE 64.4560 % frente a 66.7240 %) como en agosto (64.2578 % frente a 64.6285 %).
+Esto muestra consistencia entre esos dos meses, sin demostrar estabilidad en otros periodos o semillas.
+
+En prueba la mejora relativa de WAPE se reduce a **0.25 %**, con RMSE **1.695772** y sesgo
+**−0.162842 viajes/h**. La subestimación total sigue siendo aproximadamente 11.23 %, frente a 15.42 %
+del baseline. El candidato cuadrático obtiene un WAPE de prueba marginalmente menor; **no se cambia
+el ganador después de ver septiembre**. La mejora es modesta y no demuestra significancia estadística.
+El ajuste del ganador tomó 4.81 s y la inferencia 1.18 ms por cada 1,000 filas en esta máquina;
+son mediciones de una ejecución, no garantías de latencia. El baseline es más barato y se conserva
+como referencia. Los datos siguen midiendo viajes atendidos; no observan demanda insatisfecha,
+cierres de estaciones ni permiten un servicio en tiempo real sin una fuente actualizada.
+
+La versión **1** de `mibici-equipo49-p1-demanda` tiene el alias **`champion`** y conserva el run
+`a59ee8f97cfe4d26b863dafbf47c4b1f`. Se verificó su carga tanto por versión como por alias con
+`mlflow.sklearn` y `mlflow.pyfunc`, comparando las predicciones con el modelo evaluado. Se usan aliases
+para cambiar el modelo consumido sin fijar un número de versión; la promoción conserva la versión
+anterior y revierte el alias si falla la comprobación posterior. Este es el estado de producción
+del Registry local para la actividad; no implica desplegar una API de predicción.
+
+El coordinador de los seis hijos es `c18b8387d29b422cae876bbee87dcb41`. Los IDs, métricas completas,
+variación temporal y tiempos están en `reports/tables/p1_etapa2_*.csv` y `p1_etapa2_runs.json`;
+las figuras y capturas de MLflow están en `reports/figures/P1_etapa2_*.png`.
+SQLite, los modelos y los artefactos completos permanecen locales y excluidos de Git.
+Validación del código: 170 pruebas verificadas (incluyendo regresiones de P2/P3), Ruff sin errores,
+baselines idénticos a Etapa 1 y carga del champion desde el código archivado en un proceso nuevo.
+
+Para reproducir solamente la configuración elegida, comparándola de nuevo con ambos baselines:
+
+```powershell
+mlflow run . -e train --env-manager=local --experiment-name mibici-equipo49 -P question=p1 -P model=hist_poisson -P "tuned_json=max_leaf_nodes=31;max_iter=120;learning_rate=0.08;min_samples_leaf=40" -P register_best=true
+```
 
 ### Baseline P3 exploratorio
 
@@ -328,7 +449,7 @@ mlflow server --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 50
 En PowerShell (la ruta debe ser absoluta para que `mlflow run` y el servidor usen el mismo archivo):
 
 ```powershell
-$db = (Resolve-Path .\mlflow.db).Path -replace '\\', '/'
+$db = (Join-Path (Get-Location).Path 'mlflow.db') -replace '\\', '/'
 mlflow server --backend-store-uri "sqlite:///$db" --host 127.0.0.1 --port 5000
 ```
 
@@ -351,8 +472,11 @@ P2_FEATURE_SET=v2 mlflow run . -e train -P question=p2 -P model=hist_gb \
 
 # Entrenamiento por pregunta: question = p1 | p2 | p3
 mlflow run . -e train -P question=p2 -P model=hist_gb
-mlflow run . -e train -P question=p1
+mlflow run . -e train --env-manager=local --experiment-name mibici-equipo49 -P question=p1
 mlflow run . -e train -P question=p3 -P final_k=FINAL_K
+
+# P1 Etapa 2: dos baselines y cuatro candidatos; registro opcional del ganador de validación
+mlflow run . -e search_p1 --env-manager=local --experiment-name mibici-equipo49 -P register_best=true
 
 # Busqueda anidada de hiperparametros de P2 (run padre + un run hijo por combinacion)
 mlflow run . -e search_p2
@@ -374,7 +498,7 @@ Cada modelo final se registra con el nombre `mibici-equipo49-<pregunta>-<tema>` 
 | Modelo registrado | Pregunta | Estado | Alias de producción | Alias de comparación |
 |---|---|---|---|---|
 | `mibici-equipo49-p2-riesgo` | P2 | Versión registrada por `train -P question=p2` (run final) | `champion` | `challenger` (opcional) |
-| `mibici-equipo49-p1-demanda` | P1 | Pendiente: P1 es solo baselines fijados, sin modelo registrado | n/a | n/a |
+| `mibici-equipo49-p1-demanda` | P1 | Registro opcional del ganador de validación con `search_p1 -P register_best=true` | `champion` tras validar la versión | n/a |
 | `mibici-equipo49-p3-grupos` | P3 | Registrado con `search_p3 -P register_best=true` | `champion` | n/a |
 
 El nombre es único por pregunta (igual que P3). El modelo concreto (`hist_gb`, `logistica`,
@@ -409,16 +533,18 @@ Experimento base integrado (paso 6). Configuración base en `mibici_ml/config.py
 - Nombre del experimento: `mibici-equipo49`.
 - Seguimiento local en SQLite (`mlflow.db`, no versionado). Ver la sección *Proyecto MLflow* más abajo.
 - Cada run registra parámetros (ventanas, semilla, horizonte, `data_version`), métricas `val_*` y `test_*`
-  (`test_*` solo en el run final), etiquetas (`team`, `question`, `git_commit`, `git_dirty`, `data_version`)
+  (`test_*` en P1 Etapa 2 se agrega a los seis hijos después de congelar la selección;
+  en P2, solo en el run final), etiquetas (`team`, `question`, `git_commit`, `git_dirty`, `data_version`)
   y artefactos. Ningún dato a nivel de viaje o de usuario se registra.
 
-P1 crea `P1-estacional-168h` y `P1-media-4semanas`; IDs en `reports/tables/p1_runs.json`.
+La ejecución histórica de P1 (Etapa 1) creó `P1-estacional-168h` y `P1-media-4semanas`;
+sus IDs están en `reports/tables/p1_runs.json`. La Etapa 2 usa la búsqueda supervisada anterior.
 Se registra `data_version`, semilla, horizonte y versión del código. El snapshot
 `reproducibility/code_snapshot.zip` y `code_provenance.json` conservan módulos y dependencias ejecutados.
 El ZIP incluye también README y licencia, cuyos hashes de contexto se registran por separado de la versión
 del código. Para reproducir, clonar el repositorio, hacer checkout del commit registrado e instalar el lock.
-Los runs finales corresponden al commit `52af95c13416705906f0630f058a4c78645a2fbe`, con `git_dirty=false`.
-Las primeras corridas locales se conservan en MLflow; las capturas adjuntas muestran los runs finales.
+Los runs finales de la Etapa 1 corresponden al commit `52af95c13416705906f0630f058a4c78645a2fbe`, con `git_dirty=false`.
+Las primeras corridas locales se conservan en MLflow; las capturas `P1_mlflow_*.png` muestran esos runs históricos.
 
 Para abrir la interfaz de MLflow sobre el mismo backend, ver *Proyecto MLflow* (servidor en el puerto 5000).
 
@@ -449,7 +575,7 @@ Diego Sánchez (P2 y cierre del repositorio).
 
 ## Resultados
 
-P1 seleccionó la media de cuatro semanas por validación. MAE/RMSE en viajes por estación-hora:
+En la Etapa 1, P1 seleccionó la media de cuatro semanas por validación. MAE/RMSE en viajes por estación-hora:
 
 | Baseline | Partición | MAE | RMSE | WAPE |
 |---|---|---:|---:|---:|
@@ -461,7 +587,7 @@ P1 seleccionó la media de cuatro semanas por validación. MAE/RMSE en viajes po
 Prueba: 336,480 estaciones-hora de 470 estaciones; 487,915 salidas y cobertura del 99.30% de horas conocidas.
 El sesgo de la media es −0.2236: subestima el volumen. Son referencias iniciales, sin validación operativa.
 Tablas agregadas: `reports/tables/p1_metrics.csv`, `p1_station_metrics.csv` y `p1_quality.json`.
-Evidencia P1:
+Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia):
 
 - [Lista de runs](reports/figures/P1_mlflow_runs.png).
 - [Detalle y etiquetas](reports/figures/P1_mlflow_detail.png).

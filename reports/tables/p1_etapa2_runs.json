@@ -1,0 +1,31 @@
+{
+  "parent_run_id": "c18b8387d29b422cae876bbee87dcb41",
+  "run_ids": {
+    "seasonal_168h": "39309c1e4baf484fb10269a3a637f524",
+    "mean_4weeks": "4707a281f27946529ebb0ec7cd8f85e4",
+    "ridge_01": "4d1c82f0e414466ab2b117e22be76244",
+    "hist_poisson_01": "7195365d64a94b4a8e68e025bc7a22e1",
+    "hist_poisson_02": "a59ee8f97cfe4d26b863dafbf47c4b1f",
+    "hist_squared_01": "11ddb7af98da413c897d146f07d99c29"
+  },
+  "selected_model_id": "hist_poisson_02",
+  "selected_config": {
+    "model_id": "hist_poisson_02",
+    "model": "hist_poisson",
+    "params": {
+      "max_leaf_nodes": 31
+    }
+  },
+  "registry": {
+    "name": "mibici-equipo49-p1-demanda",
+    "version": "1",
+    "alias": "champion",
+    "model_uri": "models:/mibici-equipo49-p1-demanda@champion",
+    "run_id": "a59ee8f97cfe4d26b863dafbf47c4b1f"
+  },
+  "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+  "git_commit": "0a2fda67daffd25b6844f396162a34d79963afb9",
+  "git_dirty": false,
+  "source_version": "c4a00418dd53b03b7f849848c9b59cacfdbf93158742ded83f333fafe5a42996",
+  "output_dir": "work/p1-etapa2/b216ebc082fa"
+}

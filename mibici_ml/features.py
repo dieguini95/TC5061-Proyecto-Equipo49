@@ -219,6 +219,34 @@ def add_p1_features(panel: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def p1_model_features(panel: pd.DataFrame) -> pd.DataFrame:
+    """Selecciona y valida las variables causales compartidas por los modelos de P1.
+
+    Consume el resultado de ``add_p1_features`` en la cohorte con cuatro semanas
+    disponibles. No agrega viajes ni consulta etiquetas: selecciona únicamente
+    ``config.P1_FEATURE_COLUMNS`` y las convierte a ``float64``. Así, un modelo
+    no recibe ``departures``, identificadores de estación ni fechas de viaje por
+    accidente. No imputa historia ausente; el mismo filtro de elegibilidad debe
+    aplicarse antes de comparar baselines y candidatos.
+    """
+    validate_p1_forecast_contract()
+    if not isinstance(panel, pd.DataFrame):
+        raise TypeError("La entrada de los modelos P1 debe ser un pandas DataFrame.")
+    columns = list(config.P1_FEATURE_COLUMNS)
+    missing = [column for column in columns if column not in panel.columns]
+    if missing:
+        raise ValueError(f"Faltan variables de P1: {', '.join(missing)}")
+    if panel.empty:
+        raise ValueError("La entrada de los modelos P1 debe contener al menos una fila.")
+    try:
+        result = panel.loc[:, columns].astype("float64").copy()
+    except (TypeError, ValueError) as error:
+        raise ValueError("Las variables de P1 deben contener valores numéricos.") from error
+    if not np.isfinite(result.to_numpy()).all():
+        raise ValueError("Las variables de P1 contienen valores ausentes o no finitos.")
+    return result
+
+
 def build_station_hour_panel(
     trips_dir: Path = TRIPS_PROCESSED_DIR,
     start_month: str = START_MONTH,
