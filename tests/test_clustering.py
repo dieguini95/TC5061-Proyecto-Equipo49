@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from mlflow import MlflowClient
+from sklearn.metrics import silhouette_score
 
 from mibici_ml.config import TABLES_DIR
 from mibici_ml.modeling.cluster import (
@@ -165,6 +166,25 @@ def test_kmeans_labels_are_reproducible_for_same_seed():
     _, first_labels = fit_final_pipeline(features, 3, random_seed=17)
     _, second_labels = fit_final_pipeline(features, 3, random_seed=17)
     np.testing.assert_array_equal(first_labels, second_labels)
+
+
+def test_kmeans_outputs_are_reproducible_with_activity_seed_and_n_init():
+    _, features, _, _ = prepared_sample()
+    first_pipeline, first_labels = fit_final_pipeline(
+        features, 3, random_seed=42, n_init=10
+    )
+    second_pipeline, second_labels = fit_final_pipeline(
+        features, 3, random_seed=42, n_init=10
+    )
+
+    np.testing.assert_array_equal(first_labels, second_labels)
+    assert first_pipeline.named_steps["kmeans"].inertia_ == pytest.approx(
+        second_pipeline.named_steps["kmeans"].inertia_
+    )
+    scaled_features = first_pipeline.named_steps["scaler"].transform(features)
+    first_silhouette = silhouette_score(scaled_features, first_labels)
+    second_silhouette = silhouette_score(scaled_features, second_labels)
+    assert first_silhouette == pytest.approx(second_silhouette)
 
 
 def test_assignments_have_one_row_per_station_and_required_columns():
