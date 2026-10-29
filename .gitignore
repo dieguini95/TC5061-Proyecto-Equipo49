@@ -213,3 +213,16 @@ mlartifacts/
 *.db-shm
 *.db-wal
 *.skops
+
+# Reportes temporales de chequeos de seguridad y archivos sensibles
+bandit-report.json
+pip-audit-report.json
+bandit-*.json
+pip-audit-*.json
+*.pickle
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite
+*.sqlite3
