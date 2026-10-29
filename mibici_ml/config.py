@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import tempfile
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -64,8 +65,21 @@ MLFLOW_DB_PATH = PROJ_ROOT / "mlflow.db"
 MLFLOW_TRACKING_URI = os.environ.get(
     "MLFLOW_TRACKING_URI", f"sqlite:///{MLFLOW_DB_PATH.as_posix()}"
 )
-# Conserva el destino historico de train para P2/P3; P1 usa su ruta propia.
-MLFLOW_TRAIN_OUTPUT_DIR = Path("/tmp/mibici-runs")
+def get_mlflow_train_output_base_dir() -> Path:
+    """Return the configured parent directory for isolated training outputs."""
+    configured_dir = os.environ.get("MLFLOW_TRAIN_OUTPUT_DIR")
+    return Path(configured_dir) if configured_dir else Path(tempfile.gettempdir())
+
+
+def create_mlflow_train_output_dir() -> Path:
+    """Create a private, unique output directory for one P2/P3 invocation."""
+    base_dir = get_mlflow_train_output_base_dir()
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="mibici-runs-", dir=base_dir))
+
+
+# P1 uses its own output path; P2/P3 create a unique child at runtime.
+MLFLOW_TRAIN_OUTPUT_DIR = get_mlflow_train_output_base_dir()
 
 # Validacion cruzada dentro de entrenamiento (sin shuffle).
 CV_N_SPLITS = 5

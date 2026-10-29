@@ -69,18 +69,22 @@ def _panel():
     return pd.concat(frames, ignore_index=True)
 
 
-def test_shared_train_defaults_preserve_other_questions(monkeypatch):
+def test_shared_train_defaults_preserve_other_questions(monkeypatch, tmp_path):
     p1_calls, p2_calls, p3_calls = [], [], []
     monkeypatch.setattr(search_p1, "run_search", lambda **kw: p1_calls.append(kw))
     monkeypatch.setattr(train.risk, "run_command", lambda **kw: p2_calls.append(kw))
     monkeypatch.setattr(train.cluster, "run_command", lambda **kw: p3_calls.append(kw))
+    monkeypatch.setenv("MLFLOW_TRAIN_OUTPUT_DIR", str(tmp_path))
     runner = CliRunner()
     assert runner.invoke(train.app, ["--question", "p1"]).exit_code == 0
     assert runner.invoke(train.app, ["--question", "p2", "--model", "hist_gb"]).exit_code == 0
     assert runner.invoke(train.app, ["--question", "p3", "--final-k", "5"]).exit_code == 0
     assert p1_calls[0]["output_dir"] is None
-    assert p2_calls[0]["output_dir"] == config.MLFLOW_TRAIN_OUTPUT_DIR
-    assert p3_calls[0]["output_dir"] == config.MLFLOW_TRAIN_OUTPUT_DIR
+    assert p2_calls[0]["output_dir"].parent == tmp_path
+    assert p3_calls[0]["output_dir"].parent == tmp_path
+    assert p2_calls[0]["output_dir"] != p3_calls[0]["output_dir"]
+    assert p2_calls[0]["output_dir"].name.startswith("mibici-runs-")
+    assert p3_calls[0]["output_dir"].name.startswith("mibici-runs-")
 
 
 def test_windows_projects_empty_arguments(monkeypatch):

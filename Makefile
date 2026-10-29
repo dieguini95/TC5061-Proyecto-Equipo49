@@ -46,6 +46,15 @@ format:
 test:
 	python -m pytest tests
 
+## Run offline repository security checks
+.PHONY: security security-audit
+security:
+	bash scripts/run_security_checks.sh
+
+## Run offline checks and dependency audit
+security-audit:
+	bash scripts/run_security_checks.sh --with-audit
+
 
 ## Set up Python interpreter environment
 .PHONY: create_environment

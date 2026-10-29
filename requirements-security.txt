@@ -1,0 +1,4 @@
+# Complementa requirements.txt; herramientas de desarrollo y seguridad.
+# pip-audit puede requerir acceso a Internet.
+bandit==1.9.4
+pip-audit==2.10.1
