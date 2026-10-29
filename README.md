@@ -622,6 +622,83 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
 se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
 
+## Tests y chequeos de seguridad
+
+Instala las herramientas de desarrollo y seguridad en el entorno virtual del repositorio:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r requirements-security.txt
+```
+
+Los controles locales, rápidos y offline se ejecutan con:
+
+```bash
+make security
+```
+
+`make security` y el script directo son gates offline: ejecutan `pip check`, Bandit sobre `mibici_ml`
+con severidad y confianza mínimas medias, y las pruebas PyTest de higiene del repositorio. El gate
+Bandit debe quedar en cero hallazgos medios o altos; los avisos low se conservan para revisión. También
+puedes invocarlo directamente:
+
+```bash
+bash scripts/run_security_checks.sh
+```
+
+Para auditar las dependencias declaradas en `requirements.txt`, ejecuta:
+
+```bash
+make security-audit
+bash scripts/run_security_checks.sh --with-audit
+```
+
+Los targets `make security` y `make security-audit` requieren GNU Make. Si no
+está disponible, utiliza directamente `bash scripts/run_security_checks.sh` y
+`bash scripts/run_security_checks.sh --with-audit`.
+
+Este modo realiza primero todos los controles offline y después `pip-audit`. La consulta de avisos de
+vulnerabilidad puede requerir acceso a Internet. Si pip-audit devuelve código 1 con vulnerabilidades
+conocidas, el script informa **AUDITORÍA EJECUTADA CON HALLAZGOS** y conserva ese código; no significa
+por sí solo que haya fallado la ejecución o la conexión. Un fallo técnico se informa separadamente. No se
+usa `--fix`: cualquier actualización se evalúa por compatibilidad y se coordina en un cambio separado.
+Los reportes JSON y las salidas temporales se guardan fuera del repositorio, en
+`/tmp/actividad7-security/`, y no se versionan.
+
+Por defecto, cada entrenamiento P2/P3 crea un subdirectorio temporal único y privado bajo el directorio
+del sistema (`tempfile.gettempdir()`); `MLFLOW_TRAIN_OUTPUT_DIR` permite configurar la carpeta base.
+`--output-dir` explícito se respeta. P1 conserva su flujo de salida independiente.
+
+Para la verificación general del proyecto también están disponibles:
+
+```bash
+pytest -q
+ruff check .
+```
+
+Al documentar la ejecución, registra los resultados reales de Bandit y `pip-audit`, las pruebas de
+seguridad aprobadas, la suite completa, Ruff, las vulnerabilidades relevantes y las acciones pendientes.
+
+### Evidencia de ejecución
+
+La evidencia oficial de la Actividad 7 está documentada en el [README de evidencias de tests y seguridad](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/README.md).
+
+Resultados verificados: pruebas de seguridad **11 passed**; Bandit medium/high **0** (13 avisos low);
+script offline exitoso; suite completa **182 passed, 41 warnings**; B108 corregido. pip-audit reportó
+**6 registros en 3 paquetes** y sus resultados requieren remediación coordinada; no se afirma que las
+dependencias estén libres de vulnerabilidades.
+
+![Pruebas PyTest de seguridad](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/01_pytest_security.png)
+
+Capturas:
+
+- [Pruebas de seguridad](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/01_pytest_security.png)
+- [Gate Bandit](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/02_bandit_gate.png)
+- [Auditoría pip-audit](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/03_pip_audit.png)
+- [Script offline](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/04_security_script.png)
+- [Suite completa](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/05_pytest_full.png)
+- [Reproducibilidad P3](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/07_p3_reproducibility.png)
+
 ## Licencia
 
 Código bajo licencia [MIT](LICENSE). Los datos son del portal de MiBici; su uso es académico y se atribuye a MiBici.
