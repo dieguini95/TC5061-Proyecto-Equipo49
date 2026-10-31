@@ -5,6 +5,7 @@
 PROJECT_NAME = TC5061-Proyecto-Equipo49
 PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
+QUALITY_PYTHON = .venv-quality/bin/python
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -45,6 +46,16 @@ format:
 .PHONY: test
 test:
 	python -m pytest tests
+
+## Run DeepChecks data validation (needs .venv-quality, see requirements-quality.txt)
+.PHONY: data-validation
+data-validation:
+	$(QUALITY_PYTHON) -m mibici_ml.data_validation
+
+## Run PyTest for DeepChecks data validation (needs .venv-quality)
+.PHONY: data-validation-tests
+data-validation-tests:
+	$(QUALITY_PYTHON) -m pytest -q tests/test_data_validation.py
 
 ## Run offline repository security checks
 .PHONY: security security-audit
