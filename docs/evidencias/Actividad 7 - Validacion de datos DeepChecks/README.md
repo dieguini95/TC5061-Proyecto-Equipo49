@@ -67,7 +67,7 @@ Las capturas muestran el comando y su resultado. Nombres exactos de archivo:
 | `02_data_validation_summary.png` | `.venv-quality/bin/python -m mibici_ml.data_validation` | Resumen de las cuatro suites y ruta del JSON |
 | `03_deepchecks_report.png` | Reporte HTML `reports/data_validation/integridad_riesgo_p2.html` en el navegador | Vista de los chequeos de DeepChecks |
 | `04_pytest_risk_reproducibility.png` | `pytest -q tests/test_risk.py -k "same_seed or different_seed or identical_across"` | Pruebas de reproducibilidad en verde |
-| `05_pytest_full_p2.png` | `pytest -q` | Total de pruebas en verde |
+| `05_pytest_full_p2.png` | `.venv/bin/python -m pytest -q -p no:cacheprovider` | `196 passed, 8 skipped`, sin fallos |
 
 Estado: pendientes de captura. Cuando estén en esta carpeta, se incrustan así:
 
