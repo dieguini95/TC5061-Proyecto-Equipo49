@@ -18,10 +18,13 @@ from mibici_ml.features import (
 )
 from mibici_ml.modeling.risk import (
     FEATURE_COLUMNS,
-    build_model,
-    evaluate_all,
-    load_verified_manifest,
     _stage_of_work,
+    best_f1_threshold,
+    build_model,
+    compute_quality_summary,
+    evaluate_all,
+    fit_and_score,
+    load_verified_manifest,
     log_p2_run,
     persistence_scores,
     precision_at_k,
@@ -52,8 +55,8 @@ def _panel_from_trips(trips: pd.DataFrame, capacities: dict[int, int]):
 
 def _write_manifest(root, *, trip_hash_ok: bool) -> tuple:
     """Manifiesto minimo con Parquet reales; ``data_version`` se calcula como en dataset.py."""
-    from mibici_ml.modeling.risk import file_sha256
     from mibici_ml.dataset import _data_version
+    from mibici_ml.modeling.risk import file_sha256
 
     processed = root / "processed"
     (processed / "trips").mkdir(parents=True)
@@ -489,3 +492,99 @@ def test_risk_cli_registers_evaluate_and_run_commands():
     assert result.exit_code == 0
     assert "evaluate" in result.output
     assert "run" in result.output
+
+
+def _synthetic_risk_panel() -> pd.DataFrame:
+    """Panel anual por horas con etiqueta aleatoria fija (semilla 0) para pruebas de reproducibilidad."""
+    hours = pd.date_range("2025-10-01", "2026-09-30 23:00", freq="h")
+    rng = np.random.default_rng(0)
+    return pd.DataFrame(
+        {
+            "est": 1,
+            "ts": hours,
+            "day": hours.normalize(),
+            "label": rng.integers(0, 2, len(hours)),
+            "salidas": rng.integers(0, 3, len(hours)),
+            "llegadas": rng.integers(0, 3, len(hours)),
+            "inventario": 5.0,
+            "capacidad": 10,
+            "flujo_acumulado": 0.0,
+        }
+    )
+
+
+def test_fit_and_score_same_seed_gives_identical_scores():
+    panel = _synthetic_risk_panel()
+    features = _features_for_active_set(panel)
+    labels = panel["label"].to_numpy()
+    masks = temporal_masks(panel)
+    metrics_a, scores_a, _ = fit_and_score(
+        "extra_trees", features, labels, panel, masks, random_seed=7
+    )
+    metrics_b, scores_b, _ = fit_and_score(
+        "extra_trees", features, labels, panel, masks, random_seed=7
+    )
+    # Tolerancia de punto flotante: la suma de arboles en paralelo puede reordenarse y
+    # cambiar el ultimo bit (~1e-16). La reproducibilidad se mide con rtol=1e-12.
+    np.testing.assert_allclose(scores_a["val"], scores_b["val"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(scores_a["test"], scores_b["test"], rtol=1e-12, atol=1e-12)
+    assert metrics_a == pytest.approx(metrics_b, rel=1e-12)
+
+
+def test_fit_and_score_different_seed_changes_scores_as_control():
+    panel = _synthetic_risk_panel()
+    features = _features_for_active_set(panel)
+    labels = panel["label"].to_numpy()
+    masks = temporal_masks(panel)
+    _, scores_a, _ = fit_and_score("extra_trees", features, labels, panel, masks, random_seed=7)
+    _, scores_b, _ = fit_and_score("extra_trees", features, labels, panel, masks, random_seed=8)
+    assert not np.array_equal(scores_a["val"], scores_b["val"])
+
+
+def test_evaluate_all_metrics_are_identical_across_runs_with_same_seed():
+    panel = _synthetic_risk_panel()
+    features = _features_for_active_set(panel)
+    first, _, _ = evaluate_all(panel, features, random_seed=7)
+    second, _, _ = evaluate_all(panel, features, random_seed=7)
+    pd.testing.assert_frame_equal(first, second, check_exact=False, rtol=1e-12)
+
+
+def test_best_f1_threshold_handles_single_class_and_tied_scores():
+    labels = np.zeros(6, dtype=int)
+    scores = np.array([0.2, 0.4, 0.6, 0.8, 0.1, 0.3])
+    threshold = best_f1_threshold(labels, scores)
+    assert isinstance(threshold, float)
+    assert scores.min() <= threshold <= scores.max()
+
+    tied_scores = np.full(6, 0.5)
+    tied_labels = np.array([1, 0, 1, 0, 1, 0])
+    assert best_f1_threshold(tied_labels, tied_scores) == pytest.approx(0.5)
+
+
+def test_quality_summary_handles_empty_and_populated_panels():
+    manifest = {"data_version": "v-test"}
+    trips = pd.DataFrame({"origin_id": [1, 2]})
+    capacities = pd.DataFrame({"est": [1, 2], "capacidad": [0, 10]})
+
+    empty = compute_quality_summary(
+        manifest,
+        trips,
+        pd.DataFrame({"factible": pd.Series([], dtype=bool)}),
+        capacities,
+        pd.DataFrame({"label": pd.Series([], dtype=int)}),
+    ).iloc[0]
+    assert empty["estacion_dia_total"] == 0
+    assert empty["pct_estacion_dia_no_factibles"] == 0.0
+    assert empty["tasa_positivos_panel"] == 0.0
+    assert empty["estaciones_capacidad_cero"] == 1
+
+    populated = compute_quality_summary(
+        manifest,
+        trips,
+        pd.DataFrame({"factible": [True, True, True, False]}),
+        capacities,
+        pd.DataFrame({"label": [1, 0, 0, 0]}),
+    ).iloc[0]
+    assert populated["estacion_dia_no_factibles"] == 1
+    assert populated["pct_estacion_dia_no_factibles"] == pytest.approx(25.0)
+    assert populated["tasa_positivos_panel"] == pytest.approx(0.25)
