@@ -1,0 +1,21 @@
+# Entorno AISLADO para validacion de datos con DeepChecks (.venv-quality).
+# DeepChecks 0.19.1 no funciona con la pila principal (numpy 2.x, scikit-learn 1.9):
+# usa np.Inf (eliminado en numpy 2), scorer 'max_error' (eliminado en sklearn 1.9) y
+# pkg_resources (setuptools). Por eso el entorno de calidad fija versiones compatibles
+# y no modifica requirements.txt.
+#
+# Crear:  uv venv --python 3.12 .venv-quality
+# Instalar: uv pip install --python .venv-quality/bin/python -r requirements-quality.txt
+# Ejecutar: .venv-quality/bin/python -m mibici_ml.data_validation
+deepchecks==0.19.1
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+scipy==1.13.1
+pyarrow==24.0.0
+plotly==5.24.1
+setuptools==80.10.2
+loguru==0.7.3
+python-dotenv==1.2.4
+typer==0.27.3
+pytest==9.1.1
