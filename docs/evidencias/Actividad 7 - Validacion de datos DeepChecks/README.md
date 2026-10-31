@@ -65,15 +65,19 @@ Las capturas muestran el comando y su resultado. Nombres exactos de archivo:
 |---|---|---|
 | `01_pytest_data_validation.png` | `.venv-quality/bin/python -m pytest -q tests/test_data_validation.py` | Pruebas en verde, sin fallos |
 | `02_data_validation_summary.png` | `.venv-quality/bin/python -m mibici_ml.data_validation` | Resumen de las cuatro suites y ruta del JSON |
-| `03_deepchecks_report.png` | Reporte HTML `reports/data_validation/integridad_riesgo_p2.html` en el navegador | Vista de los chequeos de DeepChecks |
 | `04_pytest_risk_reproducibility.png` | `pytest -q tests/test_risk.py -k "same_seed or different_seed or identical_across"` | Pruebas de reproducibilidad en verde |
 | `05_pytest_full_p2.png` | `.venv/bin/python -m pytest -q -p no:cacheprovider` | `196 passed, 8 skipped`, sin fallos |
 
-Estado: pendientes de captura. Cuando estén en esta carpeta, se incrustan así:
+La captura del reporte HTML de DeepChecks no se incluye: al abrir el archivo en el navegador salió en blanco. La
+evidencia de la ejecución de DeepChecks es el resumen de la captura 02 y el JSON `reports/tables/data_validation_summary.json`.
 
-```markdown
 ![Pruebas de validación de datos](./01_pytest_data_validation.png)
-```
+
+![Resumen de la validación DeepChecks](./02_data_validation_summary.png)
+
+![Pruebas de reproducibilidad de riesgo](./04_pytest_risk_reproducibility.png)
+
+![Suite completa](./05_pytest_full_p2.png)
 
 ## 6. Limitaciones
 
