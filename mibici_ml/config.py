@@ -65,6 +65,8 @@ MLFLOW_DB_PATH = PROJ_ROOT / "mlflow.db"
 MLFLOW_TRACKING_URI = os.environ.get(
     "MLFLOW_TRACKING_URI", f"sqlite:///{MLFLOW_DB_PATH.as_posix()}"
 )
+
+
 def get_mlflow_train_output_base_dir() -> Path:
     """Return the configured parent directory for isolated training outputs."""
     configured_dir = os.environ.get("MLFLOW_TRAIN_OUTPUT_DIR")
@@ -200,6 +202,16 @@ P3_REGISTRY_MODEL_NAME = "mibici-equipo49-p3-grupos"
 P3_CHAMPION_ALIAS = "champion"
 P3_SEARCH_EXPERIMENT_NAME = EXPERIMENT_NAME
 P3_N_INIT = 10
+
+# ---------------------------------------------------------------------------
+# Validacion de datos con DeepChecks (entorno de calidad, ver requirements-quality.txt)
+# ---------------------------------------------------------------------------
+# Resumen agregado (conteos y nombres de chequeos) que si se versiona.
+DATA_VALIDATION_SUMMARY_PATH = TABLES_DIR / "data_validation_summary.json"
+# Reportes HTML de DeepChecks: pueden contener filas de ejemplo, no se versionan.
+DATA_VALIDATION_DIR = REPORTS_DIR / "data_validation"
+DATA_VALIDATION_SAMPLE_SIZE = 150_000  # filas maximas por muestra, con semilla fija
+DATA_VALIDATION_SEED = RANDOM_SEED
 
 # ---------------------------------------------------------------------------
 # Logging: si tqdm esta instalado, loguru escribe con tqdm.write

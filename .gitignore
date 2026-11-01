@@ -214,6 +214,10 @@ mlartifacts/
 *.db-wal
 *.skops
 
+# Validacion de datos con DeepChecks: entorno aislado y reportes HTML (pueden incluir filas)
+.venv-quality/
+reports/data_validation/*.html
+
 # Reportes temporales de chequeos de seguridad y archivos sensibles
 bandit-report.json
 pip-audit-report.json

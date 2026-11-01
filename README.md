@@ -699,6 +699,83 @@ Capturas:
 - [Suite completa](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/05_pytest_full.png)
 - [Reproducibilidad P3](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/07_p3_reproducibility.png)
 
+## Validación de datos con DeepChecks
+
+La validación revisa las entradas de P1 y P2 con [DeepChecks](https://docs.deepchecks.com/stable/getting-started/welcome.html)
+(versión 0.19.1). Usa un entorno propio, `.venv-quality`, porque DeepChecks 0.19.1 no funciona con la pila
+principal (numpy 2.x y scikit-learn 1.9): usa `np.Inf`, el scorer `max_error` y `pkg_resources`. El entorno
+principal y `requirements.txt` no cambian.
+
+Requiere haber ejecutado la ingesta (`python -m mibici_ml.dataset`): los Parquet de `data/processed` se verifican
+contra `references/data_manifest.json`.
+
+### Instalación
+
+```bash
+uv venv --python 3.12 .venv-quality
+uv pip install --python .venv-quality/bin/python -r requirements-quality.txt
+```
+
+### Ejecución
+
+```bash
+.venv-quality/bin/python -m mibici_ml.data_validation          # validación sobre datos reales
+.venv-quality/bin/python -m pytest -q tests/test_data_validation.py   # pruebas de la validación
+```
+
+Con GNU Make: `make data-validation` y `make data-validation-tests`.
+
+El comando usa muestras de hasta 150,000 filas con semilla 42 (el panel completo tiene 3.9 millones). Genera:
+
+- `reports/tables/data_validation_summary.json`: resumen agregado (conteos y nombres de chequeos). Se versiona.
+- `reports/data_validation/*.html`: reportes interactivos de DeepChecks. No se versionan porque pueden contener
+  filas de ejemplo.
+
+En el entorno principal, las pruebas de DeepChecks se omiten (`importorskip`); las demás corren normalmente.
+
+### Qué valida
+
+| Suite | Datos | Revisa |
+|---|---|---|
+| `integridad_viajes` | Viajes limpios (muestra de los 12 meses) | Nulos, tipos, duplicados, valores únicos, cadenas y atípicos |
+| `integridad_riesgo_p2` | Panel de riesgo P2 (variables v1 y etiqueta) | Lo anterior, conflictos de etiqueta y correlación entre variables |
+| `train_test_viajes` | Viajes: entrenamiento oct-25 a jun-26 contra prueba sep-26 | Drift, fugas por fecha y categorías nuevas |
+| `train_test_riesgo_p2` | Panel P2 con la misma partición temporal | Drift de variables y etiqueta, fugas por fecha y mezcla de muestras |
+
+La suite de integridad agrega `PercentOfNulls` con umbral de 0%, porque `data_integrity` no cuenta los NaN
+(solo detecta representaciones mezcladas de nulos). Los chequeos que necesitan una columna que la suite no
+tiene (por ejemplo, etiqueta en los viajes) se reportan como `no_aplicable` con su motivo, no como error.
+
+### Resultados verificados
+
+Versión de datos `0f000bd5e656`, semilla 42, muestra de 150,000 filas por conjunto:
+
+| Suite | Chequeos | Aprobados | Fallidos | No aplicables | Errores |
+|---|---:|---:|---:|---:|---:|
+| `integridad_viajes` | 13 | 9 | 0 | 3 | 0 |
+| `integridad_riesgo_p2` | 13 | 10 | 2 | 0 | 0 |
+| `train_test_viajes` | 12 | 7 | 1 | 4 | 0 |
+| `train_test_riesgo_p2` | 12 | 10 | 1 | 1 | 0 |
+
+Hallazgos (detalle en `docs/evidencias/Actividad 7 - Validacion de datos DeepChecks/README.md`):
+
+- **Valores faltantes:** ninguno en viajes ni en el panel (0%).
+- **Duplicados:** en viajes, 71,495 de 4,493,328 filas (1.6%) repiten sus variables derivadas; `trip_id` es único,
+  así que son viajes distintos con el mismo perfil. En el panel de riesgo, 1,699,371 de 3,906,456 (43.5%)
+  repiten el vector de variables porque no incluyen tiempo absoluto: esperado por diseño, no es error de ingesta.
+- **Conflictos de etiqueta:** 0.11% de las muestras tienen variables idénticas y etiquetas distintas.
+- **Correlación alta (> 0.9):** `capacidad` con la estación (es propiedad fija de cada estación) y
+  `flujo_acumulado` con `flujo_acumulado_sobre_c` (la segunda es la primera dividida por la capacidad).
+  Son redundancias conocidas; afectan la interpretación de importancias, no la validez de los datos.
+- **Categorías nuevas:** 3.8% de los viajes de prueba tienen origen o destino en estaciones que no aparecen en
+  entrenamiento. Las variables de P2 no incluyen la estación, así que no entran al modelo de riesgo.
+- **Mezcla train/test:** 18.8% de las filas de prueba del panel repiten un vector de entrenamiento (consecuencia
+  del duplicado anterior). La partición es temporal y el chequeo de fuga por fecha pasa.
+- **Drift:** sin drift de variables entre entrenamiento y prueba (`Feature Drift` y `Multivariate Drift` aprobados
+  en viajes y en el panel) ni de etiqueta (`Label Drift` aprobado en el panel).
+
+Los fallos no detienen la ejecución (código de salida 0): son hallazgos para revisar, no errores del pipeline.
+
 ## Licencia
 
 Código bajo licencia [MIT](LICENSE). Los datos son del portal de MiBici; su uso es académico y se atribuye a MiBici.

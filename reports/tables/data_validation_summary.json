@@ -1,0 +1,382 @@
+{
+  "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+  "semilla": 42,
+  "tamano_muestra_maximo": 150000,
+  "ventanas": {
+    "entrenamiento": [
+      "2025-10-01",
+      "2026-06-30"
+    ],
+    "prueba": [
+      "2026-09-01",
+      "2026-09-30"
+    ]
+  },
+  "hallazgos_basicos": {
+    "viajes_todos": {
+      "filas": 4493328,
+      "nulos": 0,
+      "filas_duplicadas": 71495
+    },
+    "viajes_entrenamiento_muestra": {
+      "filas": 150000,
+      "nulos": 0,
+      "filas_duplicadas": 102
+    },
+    "viajes_prueba_muestra": {
+      "filas": 150000,
+      "nulos": 0,
+      "filas_duplicadas": 171
+    },
+    "riesgo_todos": {
+      "filas": 3906456,
+      "nulos": 0,
+      "filas_duplicadas": 1699371,
+      "tasa_positivos": 0.004563
+    },
+    "riesgo_entrenamiento_muestra": {
+      "filas": 150000,
+      "nulos": 0,
+      "filas_duplicadas": 31595,
+      "tasa_positivos": 0.004653
+    },
+    "riesgo_prueba_muestra": {
+      "filas": 150000,
+      "nulos": 0,
+      "filas_duplicadas": 16092,
+      "tasa_positivos": 0.005447
+    }
+  },
+  "suites": [
+    {
+      "suite": "Integridad de datos",
+      "chequeos_total": 13,
+      "chequeos_aprobado": 9,
+      "chequeos_fallido": 0,
+      "chequeos_sin_condiciones": 1,
+      "chequeos_no_aplicable": 3,
+      "chequeos_error": 0,
+      "chequeos": [
+        {
+          "chequeo": "Single Value in Column",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Special Characters",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Mixed Nulls",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Mixed Data Types",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "String Mismatch",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Data Duplicates",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "String Length Out Of Bounds",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Feature-Feature Correlation",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "PercentOfNulls",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Outlier Sample Detection",
+          "estado": "sin_condiciones",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Conflicting Labels - Train Dataset",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain a label column"
+        },
+        {
+          "chequeo": "Feature Label Correlation - Train Dataset",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain a label column"
+        },
+        {
+          "chequeo": "Identifier Label Correlation - Train Dataset",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain a label column"
+        }
+      ],
+      "id": "integridad_viajes",
+      "html": "reports/data_validation/integridad_viajes.html"
+    },
+    {
+      "suite": "Integridad de datos",
+      "chequeos_total": 13,
+      "chequeos_aprobado": 10,
+      "chequeos_fallido": 2,
+      "chequeos_sin_condiciones": 1,
+      "chequeos_no_aplicable": 0,
+      "chequeos_error": 0,
+      "chequeos": [
+        {
+          "chequeo": "Conflicting Labels",
+          "estado": "fallido",
+          "condiciones_fallidas": [
+            {
+              "condicion": "Ambiguous sample ratio is less or equal to 0%",
+              "detalle": "Ratio of samples with conflicting labels: 0.11%"
+            }
+          ]
+        },
+        {
+          "chequeo": "Feature-Feature Correlation",
+          "estado": "fallido",
+          "condiciones_fallidas": [
+            {
+              "condicion": "Not more than 0 pairs are correlated above 0.9",
+              "detalle": "Correlation is greater than 0.9 for pairs [('capacidad', 'est'), ('flujo_acumulado', 'flujo_acumulado_sobre_c')]"
+            }
+          ]
+        },
+        {
+          "chequeo": "Single Value in Column",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Special Characters",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Mixed Nulls",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Mixed Data Types",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "String Mismatch",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Data Duplicates",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "String Length Out Of Bounds",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Feature Label Correlation",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Identifier Label Correlation",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "PercentOfNulls",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Outlier Sample Detection",
+          "estado": "sin_condiciones",
+          "condiciones_fallidas": []
+        }
+      ],
+      "id": "integridad_riesgo_p2",
+      "html": "reports/data_validation/integridad_riesgo_p2.html"
+    },
+    {
+      "suite": "Train Test Validation Suite",
+      "chequeos_total": 12,
+      "chequeos_aprobado": 7,
+      "chequeos_fallido": 1,
+      "chequeos_sin_condiciones": 0,
+      "chequeos_no_aplicable": 4,
+      "chequeos_error": 0,
+      "chequeos": [
+        {
+          "chequeo": "New Category Train Test",
+          "estado": "fallido",
+          "condiciones_fallidas": [
+            {
+              "condicion": "Ratio of samples with a new category is less or equal to 0%",
+              "detalle": "Found 2 features with ratio of new categories above threshold: \n{'origen': '3.84%', 'destino': '3.74%'}"
+            }
+          ]
+        },
+        {
+          "chequeo": "Datasets Size Comparison",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "String Mismatch Comparison",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Date Train-Test Leakage (duplicates)",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Date Train-Test Leakage (overlap)",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Train Test Samples Mix",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Feature Drift",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Multivariate Drift",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "New Label Train Test",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain a label column"
+        },
+        {
+          "chequeo": "Index Train Test Leakage",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain an index"
+        },
+        {
+          "chequeo": "Feature Label Correlation Change",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain a label column"
+        },
+        {
+          "chequeo": "Label Drift",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain a label column"
+        }
+      ],
+      "id": "train_test_viajes",
+      "html": "reports/data_validation/train_test_viajes.html"
+    },
+    {
+      "suite": "Train Test Validation Suite",
+      "chequeos_total": 12,
+      "chequeos_aprobado": 10,
+      "chequeos_fallido": 1,
+      "chequeos_sin_condiciones": 0,
+      "chequeos_no_aplicable": 1,
+      "chequeos_error": 0,
+      "chequeos": [
+        {
+          "chequeo": "Train Test Samples Mix",
+          "estado": "fallido",
+          "condiciones_fallidas": [
+            {
+              "condicion": "Percentage of test data samples that appear in train data is less or equal to 5%",
+              "detalle": "Percent of test data samples that appear in train data: 18.81%"
+            }
+          ]
+        },
+        {
+          "chequeo": "Datasets Size Comparison",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "New Label Train Test",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "New Category Train Test",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "String Mismatch Comparison",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Date Train-Test Leakage (duplicates)",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Date Train-Test Leakage (overlap)",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Feature Label Correlation Change",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Feature Drift",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Label Drift",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Multivariate Drift",
+          "estado": "aprobado",
+          "condiciones_fallidas": []
+        },
+        {
+          "chequeo": "Index Train Test Leakage",
+          "estado": "no_aplicable",
+          "condiciones_fallidas": [],
+          "motivo": "Dataset does not contain an index"
+        }
+      ],
+      "id": "train_test_riesgo_p2",
+      "html": "reports/data_validation/train_test_riesgo_p2.html"
+    }
+  ]
+}
