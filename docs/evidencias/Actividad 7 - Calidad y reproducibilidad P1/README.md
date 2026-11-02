@@ -40,12 +40,16 @@ MLflow ni acceso a Internet durante la validación. No se modifica `requirements
 
 ## 3. Datos y procedencia de esta ejecución
 
-- Ejecución local: **1 de noviembre de 2026**; base `main` **`b545c9d4509a938bfba58f413582a187c6cab4b4`**.
-- Rama local: `feat/p1-quality-actividad7`; cambios sin commit ni push al generar esta evidencia.
-  `git_dirty=true` identifica honestamente este estado. El commit base no contiene por sí solo
-  la implementación nueva; el JSON incluye los hashes de los archivos ejecutados.
+- Ejecución local en la Mac del autor: **1 de noviembre de 2026**, 20:20 hora local; commit `f9eb785`
+  al momento de la ejecución (rama `docs/actividad7-cierre`, base `main` `bbccdcb`).
+  `git_dirty=true` identifica honestamente que el árbol tenía cambios sin commit; el JSON incluye los
+  hashes de los archivos ejecutados.
 - Datos: 12 meses, octubre de 2025 a septiembre de 2026. Versión
-  `0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3`.
+  `99e366a046567471c42c9cf46e609f85332c591652baeaa45bbe431ac0532781`. Esta ejecución regeneró
+  `references/data_manifest.json` (cambian `data_version` y `processed_sha256` de `stations.parquet`)
+  y el resumen versionado. La versión previa `0f000bd5…`, obtenida en la ejecución de Windows, no
+  coincide con esta; antes de declarar reproducibilidad entre equipos debe confirmarse que ambos
+  equipos parten del mismo `stations.parquet`.
 - Se verificaron la identidad del manifiesto, el rango, los meses y los hashes de todos los Parquet
   de viajes y del catálogo. Un cambio del catálogo no se acepta silenciosamente.
 - Entorno de calidad: Python 3.12.14, DeepChecks 0.19.1, NumPy 1.26.4, pandas 2.2.3,
@@ -159,8 +163,8 @@ Los HTML `reports/data_validation/p1_*.html` quedan locales e ignorados porque p
 
 La primera captura corresponde a la ejecución en Windows PowerShell del 1 de noviembre de 2026:
 **50 passed, 12 warnings en 17.46 s**, con código de salida **0**. La imagen se conserva tal como
-fue capturada en la máquina del autor de esa aportación. Las otras tres capturas siguen pendientes
-de incorporar; el registro de la ejecución no se versiona.
+fue capturada en la máquina del autor de esa aportación. Las otras tres capturas se tomaron en la Mac
+de Diego el 1 de noviembre de 2026 y están incorporadas en esta carpeta.
 
 Esta captura acredita la ejecución de PyTest sobre funciones de calidad de datos, con casos
 normales y límite descritos en el apartado 4. El muestreo repetible incluido en estas pruebas
@@ -170,11 +174,17 @@ La validación DeepChecks del conjunto real corresponde a la tercera captura.
 | Archivo | Estado | Evidencia |
 |---|---|---|
 | [01_pytest_calidad_p1.png](./01_pytest_calidad_p1.png) | Incorporada | Comando y resultado de las 33 pruebas nuevas más las 17 existentes: 50 aprobadas |
-| `02_p1_causalidad_reproducibilidad.png` | Pendiente | Comando y resultado de causalidad y repetición del ajuste en los tres candidatos de P1 |
-| `03_deepchecks_p1_datos_reales.png` | Pendiente | Comando, cohorte, versión de datos y resultados de las tres suites, incluidos sus hallazgos |
-| `04_regresion_p1_p2_p3.png` | Pendiente | Comando y resultado de regresión de ingesta y modelos, con la exclusión de seguridad visible |
+| `02_p1_causalidad_reproducibilidad.png` | Incorporada | Comando y resultado de causalidad y repetición del ajuste en los tres candidatos de P1: 3 aprobadas, 17 deseleccionadas |
+| `03_deepchecks_p1_datos_reales.png` | Incorporada | Comando, cohorte, versión de datos `99e366…` y resultados de las tres suites (37 chequeos, código de salida 0) |
+| `04_regresion_p1_p2_p3.png` | Incorporada | Comando y resultado de regresión de ingesta y modelos, con la exclusión de seguridad visible: 215 aprobadas, 11 omitidas |
 
 ![Pruebas de calidad P1: 50 aprobadas y código de salida 0](./01_pytest_calidad_p1.png)
+
+![Causalidad y reproducibilidad P1: 3 aprobadas, 17 deseleccionadas](./02_p1_causalidad_reproducibilidad.png)
+
+![Validación DeepChecks P1 sobre datos reales: código de salida 0](./03_deepchecks_p1_datos_reales.png)
+
+![Regresión sin pruebas de seguridad: 215 aprobadas, 11 omitidas](./04_regresion_p1_p2_p3.png)
 
 Desde `C:\Users\saul_\MaestriaMNA\Tarea_MLOPS`, ejecutar cada comando y capturar la terminal cuando
 termine. Los dos controles de calidad utilizan el entorno aislado:
@@ -209,4 +219,4 @@ Guardar las capturas en esta carpeta conservando visibles el directorio, el coma
   no debe usarse esta evidencia para declarar cerrados esos pendientes del equipo.
 - No cambia los README de evidencia ni las capturas de Daniel y Diego.
 - La integración de esta aportación se realiza mediante Pull Request. La aprobación de otro integrante
-  y la incorporación de las tres capturas pendientes deben verificarse antes de declarar cerrada la entrega.
+  debe verificarse antes de declarar cerrada la entrega. Las cuatro capturas de esta carpeta ya están incorporadas.

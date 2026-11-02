@@ -582,8 +582,9 @@ Pull requests del proyecto:
 | [#11](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/11) | `feat/security-quality-checks` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
 | [#12](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/12) | `feat/deepchecks-data-validation` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
 | [#13](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/13) | `feat/p1-quality-actividad7` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
+| [#14](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/14) | `docs/actividad7-cierre` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado), DaniRuan (Daniel Ruán) |
 
-Los trece PR de las Etapas 1, 2 y 3 están fusionados en `main`. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
+Los trece PR de las Etapas 1, 2 y 3 están fusionados en `main`. El PR #14 (cierre de la Actividad 7) está abierto para revisión. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
 
 Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
 Diego Sánchez (P2 y cierre del repositorio).
@@ -627,7 +628,7 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 | 11 | Features (`features.py`) | Hecho: P1 y P2 documentados y probados |
 | 12 | README final | Hecho en este PR (`chore/readme-etapa2-final`) |
 | 13 | Etapa 2: MLflow Project y Model Registry | Hecho: entry points `ingest`, `train`, `search_p1`, `search_p2` y `search_p3`; champion de P1, P2 y P3 registrados |
-| 14 | Actividad 7 (Etapa 3): pruebas PyTest, DeepChecks y chequeos de seguridad | Hecho en `main`; capturas P1 pendientes (ver [Actividad 7](#actividad-7-pruebas-y-chequeos)) |
+| 14 | Actividad 7 (Etapa 3): pruebas PyTest, DeepChecks y chequeos de seguridad | Hecho: capturas de P1 incorporadas en el PR #14 (ver [Actividad 7](#actividad-7-pruebas-y-chequeos)) |
 
 Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
 se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
@@ -637,7 +638,7 @@ se confirma con el profesor; y el hash de `stations.parquet` difiere del manifie
 Índice de cómo ejecutar cada control y dónde está su evidencia. Las instrucciones detalladas están en
 las secciones de cada tema más abajo.
 
-| Control | Comando | Resultado verificado (clon limpio de `main`, 1 de noviembre de 2026) | Evidencia |
+| Control | Comando | Resultado verificado (rama `docs/actividad7-cierre`, 1 de noviembre de 2026) | Evidencia |
 |---|---|---|---|
 | Suite completa PyTest (entorno principal) | `pytest -q` | 226 passed, 11 skipped | [Seguridad: captura 05](docs/evidencias/Actividad%207%20-%20Chequeos%20de%20seguridad/README.md) |
 | Pruebas de calidad de datos (entorno aislado) | `.venv-quality/bin/python -m pytest -q tests/test_data_validation.py tests/test_data_validation_p1.py` | 50 passed | [P1](docs/evidencias/Actividad%207%20-%20Calidad%20y%20reproducibilidad%20P1/README.md), [DeepChecks](docs/evidencias/Actividad%207%20-%20Validacion%20de%20datos%20DeepChecks/README.md) |
@@ -650,8 +651,10 @@ Dos notas de alcance: las pruebas nuevas de DeepChecks usan `.venv-quality` porq
 funciona con numpy 2.x ni scikit-learn 1.9 del entorno principal; y las pruebas de higiene de seguridad
 con permisos POSIX y rutas Bash fallan en Windows (ver la sección de seguridad).
 
-Capturas de la ejecución de P1 pendientes de incorporar: causalidad/reproducibilidad, DeepChecks P1 sobre
-datos reales y regresión. Están listadas en la [evidencia de P1](docs/evidencias/Actividad%207%20-%20Calidad%20y%20reproducibilidad%20P1/README.md).
+Las cuatro capturas de la ejecución de P1 (PyTest de calidad, causalidad/reproducibilidad, DeepChecks P1 sobre
+datos reales y regresión) están incorporadas en la [evidencia de P1](docs/evidencias/Actividad%207%20-%20Calidad%20y%20reproducibilidad%20P1/README.md).
+La validación de P1 de esa ejecución usa la versión de datos `99e366…`; la de la ejecución de Windows fue `0f000bd…`.
+La procedencia y la confirmación de que ambos equipos parten del mismo `stations.parquet` están en esa misma evidencia.
 
 ## Tests y chequeos de seguridad
 
@@ -885,8 +888,8 @@ Verificación del 1 de noviembre de 2026:
 | Higiene de los archivos preparados para el PR | **4 passed, 7 deselected**: archivos sensibles, secretos evidentes, reglas de exclusión y evidencia versionable |
 | Estilo y formato | Ruff y `git diff --check` aprobados |
 
-En la Actividad 7 faltan tres capturas de la ejecución de P1 (causalidad/reproducibilidad, DeepChecks sobre datos
-reales y regresión). La captura de PyTest ya está incorporada. Las capturas se listan en la evidencia de P1.
+Las capturas de la ejecución de P1 (causalidad/reproducibilidad, DeepChecks sobre datos reales y regresión) ya están
+incorporadas en la evidencia de P1, junto con la de PyTest.
 La comprobación adicional de seguridad en Windows dio **6 passed, 5 failed**: dos aserciones de
 permisos POSIX y tres casos de rutas Bash; son limitaciones de los controles existentes, no cambios
 en P2/P3 introducidos por esta aportación. Los resultados históricos de seguridad documentados
