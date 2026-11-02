@@ -776,6 +776,91 @@ Hallazgos (detalle en `docs/evidencias/Actividad 7 - Validacion de datos DeepChe
 
 Los fallos no detienen la ejecución (código de salida 0): son hallazgos para revisar, no errores del pipeline.
 
+### P1: validación de la entrada del modelo (Actividad 7)
+
+`mibici_ml/data_validation_p1.py` complementa las suites anteriores con el panel estación-hora y
+las siete variables que reciben los modelos de demanda. Reutiliza la preparación de `features.py`
+y la verificación estricta de P1: identidad del manifiesto, meses, hashes de viajes y catálogo.
+No reentrena los modelos de demanda ni modifica los runs, aliases o resultados de P2/P3.
+
+Sobre el panel completo comprueba claves estación-hora únicas, continuidad, objetivo entero no negativo,
+calendario y predictores finitos en la cohorte elegible. Distingue las estaciones aún desconocidas y
+las filas sin cuatro semanas de historia de un dato inválido; no imputa ni elimina errores silenciosamente.
+DeepChecks evalúa la integridad de P1 y compara entrenamiento con validación y prueba mediante muestras
+de hasta 150,000 filas con semilla 42; los chequeos pueden aplicar submuestreos internos.
+La etiqueta se declara explícitamente como regresión.
+
+Utiliza el mismo entorno aislado `requirements-quality.txt`. Desde la raíz, en Linux/macOS:
+
+```bash
+.venv-quality/bin/python -m pytest -q tests/test_data_validation_p1.py
+.venv-quality/bin/python -m mibici_ml.data_validation_p1
+```
+
+En PowerShell, para crear el entorno y ejecutar los controles de datos:
+
+```powershell
+py -3.12 -m venv .venv-quality
+.\.venv-quality\Scripts\python.exe -m pip install -r requirements-quality.txt
+.\.venv-quality\Scripts\python.exe -m pytest -q tests/test_data_validation_p1.py
+.\.venv-quality\Scripts\python.exe -m mibici_ml.data_validation_p1
+```
+
+La ingesta debe haberse ejecutado previamente. Los valores por defecto provienen de `config.py`;
+`--processed-dir` y `--manifest-path` permiten usar otra copia local verificada.
+Con GNU Make están disponibles `make data-validation-p1` y `make data-validation-p1-tests`;
+en Windows se puede sobrescribir `QUALITY_PYTHON=.venv-quality/Scripts/python.exe`.
+
+El resumen agregado se guarda en `reports/tables/p1_data_validation_summary.json`, separado del de P2.
+Los HTML `reports/data_validation/p1_*.html` permanecen ignorados porque pueden contener ejemplos.
+El JSON registra cobertura, particiones, todos los estados de los chequeos, versión de datos,
+versiones del entorno, commit base, cambios locales y hashes del código utilizado.
+Un error estructural, de identidad o de ejecución produce un código de salida distinto de cero.
+Los hallazgos estadísticos se conservan para interpretación; no demuestran por sí solos fuga temporal
+ni provocan una selección nueva del modelo.
+
+En el entorno **principal de entrenamiento**, las pruebas existentes verifican que alterar viajes futuros
+no cambia los predictores ni las predicciones de dos ajustes de Ridge y de ambos modelos boosting:
+
+```bash
+python -m pytest -q tests/test_p1_model.py -k future_trip_changes
+```
+
+Las pruebas nuevas que dependen de DeepChecks se omiten en el entorno principal y se ejecutan en
+`.venv-quality`. Resultados, cobertura de casos límite y estado de las capturas:
+[evidencia de P1](docs/evidencias/Actividad%207%20-%20Calidad%20y%20reproducibilidad%20P1/README.md).
+
+#### Cambios de esta aportación de P1
+
+- Validación independiente del panel estación-hora, sus siete predictores, objetivo y particiones,
+  con verificación del manifiesto y los hashes antes de procesar datos.
+- **33 pruebas nuevas** de casos normales y límite, conservando las pruebas existentes de
+  reproducibilidad del entrenamiento y los módulos de P2/P3.
+- Targets `data-validation-p1` y `data-validation-p1-tests`, configuración centralizada y resumen
+  agregado con procedencia en `reports/tables/p1_data_validation_summary.json`.
+- Carpeta de evidencias P1 con comandos, interpretación de hallazgos y captura real de PyTest.
+  Las evidencias de los demás integrantes permanecen intactas.
+
+Verificación del 1 de noviembre de 2026:
+
+| Control | Resultado y alcance |
+|---|---|
+| Calidad de datos con PyTest | **50 passed, 12 warnings**: 33 pruebas P1 y 17 existentes, en `.venv-quality` |
+| Causalidad y reproducibilidad P1 | **3 passed, 17 deselected**, en el entorno principal de entrenamiento |
+| Regresión de ingesta y modelos | **215 passed, 11 skipped, 42 warnings**; excluye explícitamente `tests/test_repository_security.py` |
+| DeepChecks P1 sobre datos reales | **37 chequeos**: 28 aprobados, 3 hallazgos, 1 sin condición, 5 no aplicables y 0 errores técnicos |
+| Bandit 1.9.4 sobre `mibici_ml` | **0 hallazgos medios/altos** con `-ll -ii`; 16 avisos de severidad baja en el inventario |
+| Higiene de los archivos preparados para el PR | **4 passed, 7 deselected**: archivos sensibles, secretos evidentes, reglas de exclusión y evidencia versionable |
+| Estilo y formato | Ruff y `git diff --check` aprobados |
+
+La Actividad 7 todavía requiere completar evidencia y revisión del equipo: faltan las capturas
+P1 de causalidad/reproducibilidad, DeepChecks real y regresión. La captura PyTest ya está incorporada.
+La comprobación adicional de seguridad en Windows dio **6 passed, 5 failed**: dos aserciones de
+permisos POSIX y tres casos de rutas Bash; son limitaciones de los controles existentes, no cambios
+en P2/P3 introducidos por esta aportación. Los resultados históricos de seguridad documentados
+arriba corresponden a la ejecución de su autor. No se presenta la regresión parcial como suite completa
+ni el gate Bandit como ausencia de vulnerabilidades en las dependencias.
+
 ## Licencia
 
 Código bajo licencia [MIT](LICENSE). Los datos son del portal de MiBici; su uso es académico y se atribuye a MiBici.

@@ -57,6 +57,16 @@ data-validation:
 data-validation-tests:
 	$(QUALITY_PYTHON) -m pytest -q tests/test_data_validation.py
 
+## Run P1 data validation without changing the P2/P3 reports
+.PHONY: data-validation-p1
+data-validation-p1:
+	$(QUALITY_PYTHON) -m mibici_ml.data_validation_p1
+
+## Run P1 validation tests in the isolated quality environment
+.PHONY: data-validation-p1-tests
+data-validation-p1-tests:
+	$(QUALITY_PYTHON) -m pytest -q tests/test_data_validation_p1.py
+
 ## Run offline repository security checks
 .PHONY: security security-audit
 security:
