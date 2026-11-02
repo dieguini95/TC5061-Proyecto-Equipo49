@@ -159,9 +159,8 @@ Los HTML `reports/data_validation/p1_*.html` quedan locales e ignorados porque p
 
 La primera captura corresponde a la ejecución en Windows PowerShell del 1 de noviembre de 2026:
 **50 passed, 12 warnings en 17.46 s**, con código de salida **0**. La imagen se conserva tal como
-fue capturada y coincide con el registro local de la ejecución. Las otras tres capturas siguen
-pendientes de incorporar. Los registros completos permanecen en `work/terminal-evidence/`,
-una ruta local ignorada por Git.
+fue capturada en la máquina del autor de esa aportación. Las otras tres capturas siguen pendientes
+de incorporar; el registro de la ejecución no se versiona.
 
 Esta captura acredita la ejecución de PyTest sobre funciones de calidad de datos, con casos
 normales y límite descritos en el apartado 4. El muestreo repetible incluido en estas pruebas
