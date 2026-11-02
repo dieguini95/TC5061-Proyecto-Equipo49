@@ -1,7 +1,7 @@
 {
   "pregunta": "P1",
-  "ejecutado_utc": "2026-11-01T23:56:27.239746+00:00",
-  "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+  "ejecutado_utc": "2026-11-02T02:20:56.705618+00:00",
+  "data_version": "99e366a046567471c42c9cf46e609f85332c591652baeaa45bbe431ac0532781",
   "entrada_verificada": {
     "meses": 12,
     "catalogo_sha256": true
@@ -51,18 +51,18 @@
     }
   },
   "procedencia": {
-    "git_commit": "b545c9d4509a938bfba58f413582a187c6cab4b4",
+    "git_commit": "f9eb785193636abc9acdb9e6d20dc80c9f1677bc",
     "git_dirty": true,
     "sha256_codigo": {
       "mibici_ml/data_validation_p1.py": "c22b358b807e59ee1a424be8d9f2270c297261eb818d35afefba68f301565133",
-      "mibici_ml/data_validation.py": "1600c6496f7d463de5a7a8d7a269014060789402bcc34cd8fb2a950c6fb323e6",
-      "mibici_ml/config.py": "989d8d0091279bd369ce770b705f18d4a20dc04ca465ad1523a6a3ed36aa54bd",
-      "mibici_ml/features.py": "3792cb0b293b9eea3a52f1cc34923334a0ab41d00bafad8e0366a8e5eb842b3a",
-      "mibici_ml/dataset.py": "dec785d76a08ba4b60e96e292b03d4f8b174a66bcf41df76eeeeca62d92d0439",
-      "mibici_ml/modeling/demand.py": "15d28eac5e5f356372a2c8dba61459ffffede99e1ec9ab1f331f2439ccb4fc53",
-      "requirements-quality.txt": "6a4a8727b05f579fa0826cca7af29adb4d2e857db5f64da9af9a0c81abef98ef"
+      "mibici_ml/data_validation.py": "cbedb6cb9bef00e1277b39fa5c9b58bc679298fbf58a4a1cd6a76c3e0ac36546",
+      "mibici_ml/config.py": "251e652a016e68e627f84e2060e67ca258de3a98f2dc41897d398d52d4c5c513",
+      "mibici_ml/features.py": "dfad98546db87795fb672420f345c2e1e63035d4147f4dfddcba7417857384dc",
+      "mibici_ml/dataset.py": "ee2dfe036182968785a83ccdf48eaf6f7481b7f545730a7a8d751a498498c4c7",
+      "mibici_ml/modeling/demand.py": "a30811761588af2f488622c1ad24ed0a5523cfec2a39ffb9a03c22bde37bb5ee",
+      "requirements-quality.txt": "5c9254cdda50e5fd7b2662e0309d65a5bd3d4d3a9992224eee313e84d82ab2a4"
     },
-    "python": "3.12.14",
+    "python": "3.12.13",
     "paquetes": {
       "deepchecks": "0.19.1",
       "numpy": "1.26.4",

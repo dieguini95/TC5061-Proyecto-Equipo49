@@ -1,6 +1,6 @@
 {
   "cleaning_version": "mibici-p1-v1",
-  "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+  "data_version": "99e366a046567471c42c9cf46e609f85332c591652baeaa45bbe431ac0532781",
   "date_range": {
     "end_month": "2026-09",
     "start_month": "2025-10"
@@ -14,7 +14,7 @@
     "clean_rows": 484,
     "encoding": "utf-8-sig",
     "processed_path": "stations.parquet",
-    "processed_sha256": "de4492282864ef5db7e01967a0d9ae2237456bd404f1b575e298bd9f88db78ed",
+    "processed_sha256": "d58c6e3e729ef976a20771d57c6fb5e2aaf0e24bc6f19eab4f1fea2264c52b51",
     "qa": {
       "exact_duplicates_removed": 0,
       "invalid_station_ids_removed": 0,

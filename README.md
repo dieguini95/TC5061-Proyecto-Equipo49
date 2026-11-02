@@ -4,7 +4,11 @@ Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**: propuesta y ba
 MLflow Project y tracking avanzado (Etapa 2).
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
-> **Estado (18 de octubre de 2026):** `main` contiene P1, P2 y P3 integradas sobre la misma ingesta
+> **Estado (1 de noviembre de 2026, Actividad 7):** `main` incluye las pruebas PyTest, la validación de datos con
+> DeepChecks para P1 y P2, y los chequeos de seguridad (Bandit, pip-audit y un script offline). Ver
+> [Actividad 7: pruebas y chequeos](#actividad-7-pruebas-y-chequeos).
+>
+> **Estado previo (18 de octubre de 2026):** `main` contiene P1, P2 y P3 integradas sobre la misma ingesta
 > (`dataset.py`) y el mismo manifiesto (`data_version`). P1 y P2 tienen runs en MLflow; P3 tiene su baseline
 > exploratorio. Ver la tabla de [estado de la actividad](#estado-de-la-actividad).
 
@@ -16,8 +20,9 @@ Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 ## Equipo
 
 - Daniel Ruán Aguilar
-- Saúl Salgado Ortega — P1: ingesta, variables, baseline y experimentación de demanda.
-- Diego Sánchez Hernández
+- Daniel Ruán Aguilar (`DaniRuan`) — P3: perfiles de uso por estación.
+- Saúl Salgado Ortega (`Drezneck-RM`) — P1: ingesta, variables, baseline y experimentación de demanda.
+- Diego Sánchez Hernández (`dieguini95`) — P2: riesgo de estación vacía o llena.
 
 ## Problema y propuesta
 
@@ -573,8 +578,13 @@ Pull requests del proyecto:
 | [#7](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/7) | `feat/p2-champion` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
 | [#8](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/8) | `feat/p3-advanced-tracking-registry` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
 | [#9](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/9) | `feat/p1-mlflow-etapa2` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
+| [#10](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/10) | `chore/readme-etapa2-final` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
+| [#11](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/11) | `feat/security-quality-checks` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
+| [#12](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/12) | `feat/deepchecks-data-validation` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
+| [#13](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/13) | `feat/p1-quality-actividad7` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
+| [#14](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/14) | `docs/actividad7-cierre` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado), DaniRuan (Daniel Ruán) |
 
-Los nueve PR de la Etapa 1 y 2 están fusionados en `main`. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
+Los trece PR de las Etapas 1, 2 y 3 están fusionados en `main`. El PR #14 (cierre de la Actividad 7) está abierto para revisión. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
 
 Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
 Diego Sánchez (P2 y cierre del repositorio).
@@ -618,9 +628,33 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 | 11 | Features (`features.py`) | Hecho: P1 y P2 documentados y probados |
 | 12 | README final | Hecho en este PR (`chore/readme-etapa2-final`) |
 | 13 | Etapa 2: MLflow Project y Model Registry | Hecho: entry points `ingest`, `train`, `search_p1`, `search_p2` y `search_p3`; champion de P1, P2 y P3 registrados |
+| 14 | Actividad 7 (Etapa 3): pruebas PyTest, DeepChecks y chequeos de seguridad | Hecho: capturas de P1 incorporadas en el PR #14 (ver [Actividad 7](#actividad-7-pruebas-y-chequeos)) |
 
 Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
 se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
+
+## Actividad 7: pruebas y chequeos
+
+Índice de cómo ejecutar cada control y dónde está su evidencia. Las instrucciones detalladas están en
+las secciones de cada tema más abajo.
+
+| Control | Comando | Resultado verificado (rama `docs/actividad7-cierre`, 1 de noviembre de 2026) | Evidencia |
+|---|---|---|---|
+| Suite completa PyTest (entorno principal) | `pytest -q` | 226 passed, 11 skipped | [Seguridad: captura 05](docs/evidencias/Actividad%207%20-%20Chequeos%20de%20seguridad/README.md) |
+| Pruebas de calidad de datos (entorno aislado) | `.venv-quality/bin/python -m pytest -q tests/test_data_validation.py tests/test_data_validation_p1.py` | 50 passed | [P1](docs/evidencias/Actividad%207%20-%20Calidad%20y%20reproducibilidad%20P1/README.md), [DeepChecks](docs/evidencias/Actividad%207%20-%20Validacion%20de%20datos%20DeepChecks/README.md) |
+| Validación DeepChecks de P2 y P1 sobre datos reales | `.venv-quality/bin/python -m mibici_ml.data_validation` y `-m mibici_ml.data_validation_p1` | Requiere la ingesta previa; resúmenes en `reports/tables/` | [DeepChecks](docs/evidencias/Actividad%207%20-%20Validacion%20de%20datos%20DeepChecks/README.md) |
+| Chequeos de seguridad offline (pip check, Bandit, pruebas de higiene) | `bash scripts/run_security_checks.sh` | Código de salida 0; Bandit medium/high 0 | [Seguridad](docs/evidencias/Actividad%207%20-%20Chequeos%20de%20seguridad/README.md) |
+| Auditoría de dependencias | `bash scripts/run_security_checks.sh --with-audit` | 10 hallazgos en 4 paquetes, documentados; remediación pendiente | [Seguridad, sección 4](docs/evidencias/Actividad%207%20-%20Chequeos%20de%20seguridad/README.md#4-resultado-pip-audit) |
+| Lint | `ruff check .` | All checks passed | - |
+
+Dos notas de alcance: las pruebas nuevas de DeepChecks usan `.venv-quality` porque DeepChecks 0.19.1 no
+funciona con numpy 2.x ni scikit-learn 1.9 del entorno principal; y las pruebas de higiene de seguridad
+con permisos POSIX y rutas Bash fallan en Windows (ver la sección de seguridad).
+
+Las cuatro capturas de la ejecución de P1 (PyTest de calidad, causalidad/reproducibilidad, DeepChecks P1 sobre
+datos reales y regresión) están incorporadas en la [evidencia de P1](docs/evidencias/Actividad%207%20-%20Calidad%20y%20reproducibilidad%20P1/README.md).
+La validación de P1 de esa ejecución usa la versión de datos `99e366…`; la de la ejecución de Windows fue `0f000bd…`.
+La procedencia y la confirmación de que ambos equipos parten del mismo `stations.parquet` están en esa misma evidencia.
 
 ## Tests y chequeos de seguridad
 
@@ -683,8 +717,9 @@ seguridad aprobadas, la suite completa, Ruff, las vulnerabilidades relevantes y 
 
 La evidencia oficial de la Actividad 7 está documentada en el [README de evidencias de tests y seguridad](docs/%65videncias/Actividad%207%20-%20Chequeos%20de%20seguridad/README.md).
 
-Resultados verificados: pruebas de seguridad **11 passed**; Bandit medium/high **0** (13 avisos low);
-script offline exitoso; suite completa **182 passed, 41 warnings**; B108 corregido. pip-audit reportó
+Resultados verificados (clon limpio de `main`, 1 de noviembre de 2026): pruebas de seguridad **11 passed**;
+Bandit medium/high **0** (13 avisos low); script offline exitoso; suite completa **226 passed, 11 skipped**;
+B108 corregido. pip-audit reportó
 **6 registros en 3 paquetes** y sus resultados requieren remediación coordinada; no se afirma que las
 dependencias estén libres de vulnerabilidades.
 
@@ -853,8 +888,8 @@ Verificación del 1 de noviembre de 2026:
 | Higiene de los archivos preparados para el PR | **4 passed, 7 deselected**: archivos sensibles, secretos evidentes, reglas de exclusión y evidencia versionable |
 | Estilo y formato | Ruff y `git diff --check` aprobados |
 
-La Actividad 7 todavía requiere completar evidencia y revisión del equipo: faltan las capturas
-P1 de causalidad/reproducibilidad, DeepChecks real y regresión. La captura PyTest ya está incorporada.
+Las capturas de la ejecución de P1 (causalidad/reproducibilidad, DeepChecks sobre datos reales y regresión) ya están
+incorporadas en la evidencia de P1, junto con la de PyTest.
 La comprobación adicional de seguridad en Windows dio **6 passed, 5 failed**: dos aserciones de
 permisos POSIX y tres casos de rutas Bash; son limitaciones de los controles existentes, no cambios
 en P2/P3 introducidos por esta aportación. Los resultados históricos de seguridad documentados
