@@ -213,6 +213,21 @@ DATA_VALIDATION_DIR = REPORTS_DIR / "data_validation"
 DATA_VALIDATION_SAMPLE_SIZE = 150_000  # filas maximas por muestra, con semilla fija
 DATA_VALIDATION_SEED = RANDOM_SEED
 
+# Actividad 7, P1: salidas separadas para conservar la evidencia de P2/P3.
+P1_DATA_VALIDATION_SUMMARY_PATH = TABLES_DIR / "p1_data_validation_summary.json"
+P1_DATA_VALIDATION_DIR = DATA_VALIDATION_DIR
+P1_DATA_VALIDATION_SAMPLE_SIZE = DATA_VALIDATION_SAMPLE_SIZE
+P1_DATA_VALIDATION_SEED = DATA_VALIDATION_SEED
+P1_DATA_VALIDATION_SOURCE_FILES = (
+    "mibici_ml/data_validation_p1.py",
+    "mibici_ml/data_validation.py",
+    "mibici_ml/config.py",
+    "mibici_ml/features.py",
+    "mibici_ml/dataset.py",
+    "mibici_ml/modeling/demand.py",
+    "requirements-quality.txt",
+)
+
 # ---------------------------------------------------------------------------
 # Logging: si tqdm esta instalado, loguru escribe con tqdm.write
 # https://github.com/Delgan/loguru/issues/135
