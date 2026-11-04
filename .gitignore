@@ -230,3 +230,6 @@ pip-audit-*.json
 *.pfx
 *.sqlite
 *.sqlite3
+
+# Servicio de inferencia (Actividad 8): bundles exportados del Registry, no versionados
+models/serving/

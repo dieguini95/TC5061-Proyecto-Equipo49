@@ -6,6 +6,10 @@ PROJECT_NAME = TC5061-Proyecto-Equipo49
 PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
 QUALITY_PYTHON = .venv-quality/bin/python
+SERVING_PYTHON ?= $(PYTHON_INTERPRETER)
+QUESTION ?= p2
+ENGINE ?= docker
+PORT ?= 8000
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -75,6 +79,27 @@ security:
 ## Run offline checks and dependency audit
 security-audit:
 	bash scripts/run_security_checks.sh --with-audit
+
+
+## Exporta el champion del Registry a models/serving/<QUESTION> (QUESTION=p1|p2|p3)
+.PHONY: serving-export
+serving-export:
+	$(SERVING_PYTHON) -m mibici_ml.serving.export --question $(QUESTION)
+
+## Construye la imagen del servicio con ENGINE=docker|podman y QUESTION=p2
+.PHONY: serving-build
+serving-build:
+	$(ENGINE) build -f Containerfile --build-arg QUESTION=$(QUESTION) -t mibici-$(QUESTION):latest .
+
+## Ejecuta el contenedor del servicio en el puerto PORT (8000 por defecto)
+.PHONY: serving-run
+serving-run:
+	$(ENGINE) run --rm -p $(PORT):8000 --name mibici-$(QUESTION) mibici-$(QUESTION):latest
+
+## Pruebas del servicio de inferencia (no requieren contenedor)
+.PHONY: serving-test
+serving-test:
+	$(SERVING_PYTHON) -m pytest -q tests/test_serving_*.py
 
 
 ## Set up Python interpreter environment

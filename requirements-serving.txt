@@ -1,0 +1,14 @@
+# Dependencias minimas del servicio de inferencia (Actividad 8), usadas por el Containerfile.
+# Las versiones son las mismas que requirements.txt. No incluye MLflow ni herramientas de
+# entrenamiento: el modelo se empaqueta como bundle skops con sus metadatos.
+fastapi==0.143.3
+starlette==1.8.0
+pydantic==2.14.1
+pydantic-core==2.50.1
+uvicorn==0.54.0
+loguru==0.7.3
+python-dotenv==1.2.4
+numpy==2.5.4
+scipy==1.18.1
+scikit-learn==1.9.1
+skops==0.16.0
