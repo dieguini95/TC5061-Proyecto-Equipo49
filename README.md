@@ -929,6 +929,108 @@ en P2/P3 introducidos por esta aportación. Los resultados históricos de seguri
 arriba corresponden a la ejecución de su autor. No se presenta la regresión parcial como suite completa
 ni el gate Bandit como ausencia de vulnerabilidades en las dependencias.
 
+## Servicio de inferencia en contenedor (Actividad 8)
+
+El champion de P2 se sirve como API REST con FastAPI empaquetada en una imagen OCI. El `Containerfile` funciona con Podman o Docker; la verificación de esta entrega se hizo con **Docker 29.8** (Podman no está instalado en la máquina del autor). Los mismos comandos aplican cambiando `docker` por `podman`.
+
+### Decisiones
+
+- **Opción de Registry:** el modelo se **empaqueta en la imagen**, no se lee del Registry en tiempo de ejecución. Motivo: las rutas de artefactos del Registry local apuntan a rutas del host que no existen dentro del contenedor, y el contenedor no debe depender de `mlflow.db` ni de `mlruns/`. `make serving-export` toma el champion por nombre y alias (`mibici-equipo49-p2-riesgo@champion`), verifica que sus predicciones coincidan con las del modelo original de MLflow, y lo guarda como `models/serving/p2/` (`model.skops` y `model_metadata.json`, ignorados por Git). `MLFLOW_TRACKING_URI` no se usa dentro de la imagen.
+- **Estrategia de despliegue: inferencia en tiempo real (síncrona).** P2 responde a una consulta puntual con el estado observado de una estación en el instante `t`, así que cada petición se resuelve en milisegundos sin cola. Para lotes existe `/predict/batch` (hasta 500 registros) porque un operador puede querer evaluar varias estaciones a la vez. P1 es por lote (24 predicciones por estación a medianoche) y P3 es por petición; la base de `mibici_ml/serving` permite exponer cada una.
+- **Seguridad de carga:** el servicio solo carga modelos **skops** con sus tipos de confianza declarados; no se carga `pickle`. La imagen corre como usuario sin privilegios (UID 10001).
+
+### Estructura añadida
+
+| Ruta | Contenido |
+|---|---|
+| `Containerfile` | Imagen `python:3.12-slim`, usuario no root, `HEALTHCHECK` y `ARG QUESTION` (p1, p2 o p3). |
+| `.dockerignore` | Excluye `.env`, datos, `mlruns/`, `mlflow.db`, entornos virtuales y pruebas. |
+| `requirements-serving.txt` | Dependencias mínimas del servicio, con las mismas versiones que `requirements.txt`. |
+| `mibici_ml/serving/` | `export.py` (Registry a bundle), `bundle.py` (carga), `service.py` (fábrica de API) y `apps/p2.py`. |
+| `tests/test_serving_*.py` | Pruebas de la API (con un bundle sintético), del contrato y de la exportación. |
+| `docs/serving/GUIA_NUEVA_API.md` | Pasos para agregar la API de otra pregunta. |
+
+### Cómo reproducir
+
+Desde la raíz, con el entorno del proyecto activo (`.venv` con `requirements.txt`) y el `mlflow.db` / `mlruns/` locales:
+
+```bash
+make serving-export QUESTION=p2          # genera models/serving/p2 desde el champion
+make serving-test                        # pruebas de la API y del contrato
+make serving-build QUESTION=p2 ENGINE=docker   # o ENGINE=podman
+make serving-run   QUESTION=p2 ENGINE=docker PORT=8000
+```
+
+Equivalente directo con Podman:
+
+```bash
+podman build -f Containerfile --build-arg QUESTION=p2 -t mibici-p2 .
+podman run --rm -p 8000:8000 mibici-p2
+```
+
+### Endpoints
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/health` | Proceso vivo (para el `HEALTHCHECK`). |
+| GET | `/ready` | 200 si el modelo cargó y coincide con el contrato; 503 si no. |
+| GET | `/v1/p2/model` | Metadatos del modelo: versión, alias, umbral, variables y `data_version`. |
+| POST | `/v1/p2/predict` | Predicción para un registro. |
+| POST | `/v1/p2/predict/batch` | Predicción para 1 a 500 registros. |
+
+La documentación interactiva está en `http://localhost:8000/docs`.
+
+### Entrada y salida
+
+La entrada tiene las 14 variables de `P2_FEATURE_COLUMNS_V2` (`features.py`) con sus rangos: `hora` 0 a 23, `dia_semana` 0 a 6 (0 = lunes), `fin_de_semana` 1 solo si el día es sábado o domingo, `capacidad` > 0, llegadas y salidas ≥ 0, y `riesgo_observado_*` binarios. `flujo_acumulado` y `tendencia_flujo_3h` pueden ser negativos. Los campos extra, los valores faltantes y los `NaN` o infinitos devuelven **422** con el detalle del error.
+
+La salida es `riesgo_prob` (probabilidad de estación vacía o llena en 2 horas, con `predict_proba`), `riesgo_alto` (`riesgo_prob >= umbral`), el umbral de validación del champion (0.200205) y la versión servida. Se usa la probabilidad y el umbral, no `predict`, porque el corte por defecto de 0.5 casi nunca se alcanza en un evento raro.
+
+### Ejemplo de petición y respuesta
+
+Petición (verificada contra el contenedor en ejecución):
+
+```bash
+curl -s -X POST http://localhost:8000/v1/p2/predict \
+  -H "Content-Type: application/json" \
+  -d '{"hora":8,"dia_semana":2,"fin_de_semana":0,"capacidad":30,"flujo_acumulado":-4,
+       "flujo_acumulado_sobre_c":-0.1333,"llegadas_1h":3,"salidas_1h":7,"llegadas_2h":5,
+       "salidas_2h":12,"salidas_misma_hora_ayer":9,"riesgo_observado_h":0,
+       "riesgo_observado_previo_h":0,"tendencia_flujo_3h":-0.2}'
+```
+
+Respuesta:
+
+```json
+{
+  "riesgo_prob": 0.0005925946619037167,
+  "riesgo_alto": false,
+  "umbral": 0.200205,
+  "modelo": "mibici-equipo49-p2-riesgo@champion",
+  "version": "1"
+}
+```
+
+Entrada inválida (`"hora": 25`) responde **422** con el detalle del campo, por ejemplo `"Input should be less than or equal to 23"`.
+
+Captura de la API respondiendo desde el contenedor en ejecución: `docs/evidencias/Actividad 8 - API P2/01_api_p2_contenedor.png`.
+
+### Verificación
+
+| Control | Resultado |
+|---|---|
+| Exportación del champion con comprobación de paridad contra MLflow | 14 variables, umbral 0.200205, predicciones idénticas |
+| Construcción de la imagen con Docker | Correcta; `pip install` con las versiones fijadas |
+| Contenedor | Corre como UID 10001, estado `healthy`, `/ready` 200 |
+| Predicción desde el contenedor | Idéntica a la del modelo local (`riesgo_prob` 0.0005925946619037167) |
+| Pruebas de la API y del contrato | Ver la suite `tests/test_serving_*.py` (`make serving-test`) |
+
+### Limitaciones
+
+- P2 tiene una clase positiva rara (0.46 % de las filas); la API entrega probabilidad y bandera de umbral, no una garantía operativa.
+- El inventario de P2 es una aproximación desde viajes, sin rebalanceo. Las variables `riesgo_observado_*` se calculan fuera del servicio: quien consume la API debe enviar el estado observado hasta `t`.
+- Por ahora el servicio solo sirve modelos sklearn. P3 se registró como `pyfunc` personalizado y necesita un adaptador antes de exportarse.
+
 ## Licencia
 
 Código bajo licencia [MIT](LICENSE). Los datos son del portal de MiBici; su uso es académico y se atribuye a MiBici.
