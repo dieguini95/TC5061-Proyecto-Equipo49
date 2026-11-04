@@ -204,6 +204,22 @@ P3_SEARCH_EXPERIMENT_NAME = EXPERIMENT_NAME
 P3_N_INIT = 10
 
 # ---------------------------------------------------------------------------
+# Servicio de inferencia (Actividad 8): el champion del Registry se exporta a un
+# bundle local (skops + metadatos) que la imagen de contenedor empaqueta.
+# ---------------------------------------------------------------------------
+SERVING_ROOT_DIR = Path(os.environ.get("MIBICI_SERVING_ROOT", str(MODELS_DIR / "serving")))
+SERVING_REGISTRY_NAMES = {
+    "p1": P1_REGISTRY_MODEL_NAME,
+    "p2": P2_REGISTRY_MODEL_NAME,
+    "p3": P3_REGISTRY_MODEL_NAME,
+}
+SERVING_ALIAS = "champion"
+SERVING_MODEL_FILE = "model.skops"
+SERVING_METADATA_FILE = "model_metadata.json"
+SERVING_MAX_BATCH = 500
+SERVING_PORT = 8000
+
+# ---------------------------------------------------------------------------
 # Validacion de datos con DeepChecks (entorno de calidad, ver requirements-quality.txt)
 # ---------------------------------------------------------------------------
 # Resumen agregado (conteos y nombres de chequeos) que si se versiona.
