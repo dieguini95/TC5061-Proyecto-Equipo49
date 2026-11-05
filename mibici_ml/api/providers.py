@@ -96,10 +96,7 @@ class FakeModelProvider:
             raise ModelPredictionError("Fake provider inference failure.")
         if tuple(frame.columns) != FEATURE_NAMES:
             raise ModelPredictionError("Unexpected feature columns.")
-        return [
-            int(float(row[0]) % 3)
-            for row in frame.itertuples(index=False, name=None)
-        ]
+        return [int(float(row[0]) % 3) for row in frame.itertuples(index=False, name=None)]
 
     def metadata(self) -> dict[str, object]:
         return {
@@ -119,4 +116,9 @@ def configured_provider(settings: APISettings) -> ModelProvider:
             model_uri=settings.model_uri,
             model_alias=settings.model_alias,
         )
+    if settings.provider == "mlflow":
+        # Import diferido: el provider falso y las pruebas no cargan MLflow.
+        from mibici_ml.api.mlflow_provider import MLflowModelProvider
+
+        return MLflowModelProvider(settings)
     return UnconfiguredModelProvider(settings)

@@ -169,9 +169,11 @@ def export_champion(
     if question not in SERVING_REGISTRY_NAMES:
         raise ValueError(f"Pregunta no soportada: {question}.")
     if question == "p3":
-        raise NotImplementedError(
-            "P3 se registra como pyfunc personalizado (P3ClusterModel); el servicio necesita "
-            "un adaptador propio antes de exportarlo."
+        # P3 es pyfunc (P3ClusterModel): no pasa por skops.
+        from mibici_ml.serving.export_pyfunc import export_pyfunc_champion
+
+        return export_pyfunc_champion(
+            question, alias=alias, output_root=output_root, tracking_uri=tracking_uri
         )
     name = SERVING_REGISTRY_NAMES[question]
     client = MlflowClient(tracking_uri=tracking_uri)
@@ -222,6 +224,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-root", type=Path, default=SERVING_ROOT_DIR)
     args = parser.parse_args(argv)
     bundle_dir = export_champion(args.question, alias=args.alias, output_root=args.output_root)
+    if args.question == "p3":
+        print(f"Modelo P3 listo: {_display_path(bundle_dir)} (pyfunc, paridad verificada)")
+        return 0
     bundle = load_bundle(bundle_dir)
     print(
         f"Bundle listo: {_display_path(bundle_dir)} "
