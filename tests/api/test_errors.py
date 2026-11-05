@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
 import pandas as pd
 import pytest
-from fastapi.testclient import TestClient
 
 from mibici_ml.api.app import create_app
 from mibici_ml.api.errors import ModelLoadError, ModelPredictionError
+from mibici_ml.api.mlflow_provider import MLflowModelProvider
 from mibici_ml.api.providers import (
     FakeModelProvider,
-    UnconfiguredModelProvider,
     configured_provider,
 )
 from mibici_ml.api.settings import APISettings
@@ -55,15 +55,18 @@ def test_unexpected_provider_load_failure_is_safe_and_does_not_stop_health() -> 
         assert forbidden not in response.text.lower()
 
 
-def test_mlflow_provider_mode_is_unconfigured_without_fake_or_registry_access() -> None:
+def test_mlflow_provider_mode_reports_missing_export_safely(tmp_path) -> None:
+    # Modo mlflow sin modelo disponible: el provider real se configura, pero sin
+    # fallback al modelo falso y sin tocar el Registry local.
     settings = APISettings(
         provider="mlflow",
         model_name="mibici-equipo49-p3-grupos",
         model_alias="champion",
         model_uri="models:/mibici-equipo49-p3-grupos@champion",
+        model_path=str(tmp_path / "sin-exportar" / "model"),
     )
     provider = configured_provider(settings)
-    assert isinstance(provider, UnconfiguredModelProvider)
+    assert isinstance(provider, MLflowModelProvider)
     assert not isinstance(provider, FakeModelProvider)
     with pytest.raises(ModelLoadError):
         provider.load()

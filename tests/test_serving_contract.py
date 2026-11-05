@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 
 from mibici_ml import config
+from mibici_ml.api.p2 import P2_FEATURE_NAMES
 from mibici_ml.features import P2_FEATURE_COLUMNS_V2
 from mibici_ml.serving import bundle as bundle_module
 from mibici_ml.serving import export
-from mibici_ml.serving.apps.p2 import P2_FEATURE_NAMES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -59,6 +59,22 @@ def test_containerfile_runs_unprivileged_with_healthcheck_and_no_secrets():
     assert "--reload" not in text
 
 
+def test_containerfile_serves_the_shared_app_with_both_models_from_the_image():
+    text = (REPO_ROOT / "Containerfile").read_text(encoding="utf-8")
+    assert "mibici_ml.api.app:app" in text, "El entrypoint debe ser la API compartida"
+    assert "mibici_ml.serving.apps" not in text, "La app paralela por pregunta fue retirada"
+    assert "MIBICI_API_PROVIDER=mlflow" in text
+    assert "MIBICI_MODEL_PATH=/app/models/serving/p3/model" in text
+    assert "MIBICI_P2_BUNDLE_DIR=/app/models/serving/p2" in text
+    assert "COPY models/serving ./models/serving" in text
+
+
+def test_serving_requirements_cover_the_pyfunc_p3_model_imports():
+    serving = _requirements(REPO_ROOT / "requirements-serving.txt")
+    for package in ("mlflow-skinny", "matplotlib", "typer", "pandas", "cloudpickle", "skops"):
+        assert package in serving, f"requirements-serving.txt debe incluir {package}"
+
+
 def test_dockerignore_keeps_secrets_data_and_mlflow_out_of_the_image():
     lines = {
         line.strip()
@@ -103,8 +119,8 @@ def test_resolve_model_id_reads_models_uri():
 
 def test_round_trip_export_from_mlflow_artifacts_matches_original(tmp_path):
     """Exporta un modelo guardado con MLflow y verifica que el bundle reproduce sus predicciones."""
-    import mlflow.sklearn
     from mlflow.models import infer_signature
+    import mlflow.sklearn
     import pandas as pd
     from sklearn.ensemble import HistGradientBoostingClassifier
 
