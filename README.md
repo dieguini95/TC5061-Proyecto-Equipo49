@@ -554,6 +554,39 @@ Las primeras corridas locales se conservan en MLflow; las capturas `P1_mlflow_*.
 
 Para abrir la interfaz de MLflow sobre el mismo backend, ver *Proyecto MLflow* (servidor en el puerto 5050).
 
+
+## API REST P3
+
+La API local de P3 está en `mibici_ml/api/`. La instancia predeterminada se ejecuta con:
+
+```bash
+./.venv/bin/uvicorn mibici_ml.api.app:app --host 127.0.0.1 --port 8000
+```
+
+Esta instancia no conecta con MLflow: `/health` responde 200 y `/ready` responde 503 mientras no haya un provider cargado. Para probar predicciones localmente, selecciona explícitamente el provider determinista de desarrollo:
+
+```bash
+./.venv/bin/uvicorn mibici_ml.api.dev:app --host 127.0.0.1 --port 8000
+```
+
+La API expone `GET /health`, `GET /ready`, `GET /model`, `POST /predict` y `POST /predict/batch`. El contrato de P3 recibe `capacidad`, `salidas_12m` y `llegadas_12m`; `station_id` es opcional y solo se usa para correlación.
+
+Ejemplo local con el provider fake explícito:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"station_id":123,"capacidad":20.0,"salidas_12m":1200.0,"llegadas_12m":900.0}'
+```
+
+Respuesta ilustrativa del FakeModelProvider explícito:
+
+```json
+{"station_id":123,"cluster":2,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}
+```
+
+El cluster mostrado lo produce el fake, no el modelo champion. Las pruebas se ejecutan con `./.venv/bin/pytest -q tests/api`. Ver [la evidencia local de la API P3](docs/evidencias/Actividad%208%20-%20API%20REST%20P3/README.md).
+
 ## Flujo de trabajo (GitHub Flow)
 
 Reglas acordadas:
