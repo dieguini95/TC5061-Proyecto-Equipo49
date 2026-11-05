@@ -8,7 +8,7 @@ Se implementó la API REST de P3 con FastAPI y Pydantic, el protocolo de provide
 
 `mibici_ml.api.app.create_app(provider=...)` recibe el `ModelProvider`. La API valida las entradas, forma un DataFrame con las features en orden y delega la inferencia. `station_id` sirve solo para correlación y no se envía al provider. La instancia predeterminada no usa fake ni conecta con MLflow; health está disponible y readiness devuelve 503.
 
-Con `MIBICI_API_PROVIDER=mlflow`, la factory devuelve `UnconfiguredModelProvider`: la carga falla de forma controlada, `/health` sigue disponible y `/ready` devuelve 503. Este modo no conecta al Registry ni cambia a fake.
+Con `MIBICI_API_PROVIDER=mlflow`, la factory devuelve `MLflowModelProvider` (`mibici_ml/api/mlflow_provider.py`), que carga el champion desde el Registry o desde un directorio exportado (`MIBICI_MODEL_PATH`). Si el modelo no está disponible, la carga falla de forma controlada, `/health` sigue disponible y `/ready` devuelve 503. Este modo nunca cambia a fake.
 
 ## 3. Contrato P3
 
