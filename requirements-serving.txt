@@ -1,6 +1,7 @@
-# Dependencias minimas del servicio de inferencia (Actividad 8), usadas por el Containerfile.
-# Las versiones son las mismas que requirements.txt. No incluye MLflow ni herramientas de
-# entrenamiento: el modelo se empaqueta como bundle skops con sus metadatos.
+# Dependencias de la imagen de inferencia (Actividad 8), usadas por el Containerfile.
+# Las versiones son las mismas que requirements.txt (una prueba lo verifica).
+# Sin el servidor de tracking ni herramientas de entrenamiento: el modelo P3 se
+# carga desde models/serving/p3 (pyfunc) y P2 desde models/serving/p2 (skops).
 fastapi==0.143.3
 starlette==1.8.0
 pydantic==2.14.1
@@ -8,7 +9,14 @@ pydantic-core==2.50.1
 uvicorn==0.54.0
 loguru==0.7.3
 python-dotenv==1.2.4
+cloudpickle==3.1.2
 numpy==2.5.4
+pandas==3.0.6
 scipy==1.18.1
 scikit-learn==1.9.1
 skops==0.16.0
+matplotlib==3.11.2
+typer==0.27.3
+mlflow-skinny==3.17.1
+psutil==7.2.2
+tqdm==4.70.1

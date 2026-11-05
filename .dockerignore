@@ -36,6 +36,5 @@ tests
 models/*
 !models/serving
 models/serving/*
-!models/serving/p1
 !models/serving/p2
 !models/serving/p3

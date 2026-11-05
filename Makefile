@@ -81,25 +81,31 @@ security-audit:
 	bash scripts/run_security_checks.sh --with-audit
 
 
-## Exporta el champion del Registry a models/serving/<QUESTION> (QUESTION=p1|p2|p3)
+## Exporta el champion del Registry a models/serving/<QUESTION> (QUESTION=p2|p3)
 .PHONY: serving-export
 serving-export:
 	$(SERVING_PYTHON) -m mibici_ml.serving.export --question $(QUESTION)
 
-## Construye la imagen del servicio con ENGINE=docker|podman y QUESTION=p2
+## Exporta P2 y P3: lo que empaqueta la imagen
+.PHONY: serving-export-all
+serving-export-all:
+	$(MAKE) serving-export QUESTION=p2
+	$(MAKE) serving-export QUESTION=p3
+
+## Construye la imagen de la API con ENGINE=docker|podman
 .PHONY: serving-build
 serving-build:
-	$(ENGINE) build -f Containerfile --build-arg QUESTION=$(QUESTION) -t mibici-$(QUESTION):latest .
+	$(ENGINE) build -f Containerfile -t mibici-serving:latest .
 
-## Ejecuta el contenedor del servicio en el puerto PORT (8000 por defecto)
+## Ejecuta el contenedor de la API en el puerto PORT (8000 por defecto)
 .PHONY: serving-run
 serving-run:
-	$(ENGINE) run --rm -p $(PORT):8000 --name mibici-$(QUESTION) mibici-$(QUESTION):latest
+	$(ENGINE) run --rm -p $(PORT):8000 --name mibici-serving mibici-serving:latest
 
-## Pruebas del servicio de inferencia (no requieren contenedor)
+## Pruebas de la API y del contrato de serving (no requieren contenedor)
 .PHONY: serving-test
 serving-test:
-	$(SERVING_PYTHON) -m pytest -q tests/test_serving_*.py
+	$(SERVING_PYTHON) -m pytest -q tests/api tests/test_serving_contract.py
 
 
 ## Set up Python interpreter environment
