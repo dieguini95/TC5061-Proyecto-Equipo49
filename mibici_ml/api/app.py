@@ -6,6 +6,8 @@ from collections.abc import Sequence
 from contextlib import asynccontextmanager
 import math
 from numbers import Real
+import os
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -20,6 +22,7 @@ from mibici_ml.api.errors import (
     PredictionShapeError,
     install_exception_handlers,
 )
+from mibici_ml.api.p2 import build_p2_router, load_p2_bundle
 from mibici_ml.api.providers import FEATURE_NAMES, ModelProvider, configured_provider
 from mibici_ml.api.schemas import (
     BatchPredictionRequest,
@@ -80,7 +83,9 @@ def _safe_metadata(provider: ModelProvider) -> ModelMetadataResponse:
 def create_app(
     provider: ModelProvider | None = None,
     settings: APISettings | None = None,
+    p2_bundle_dir: Path | None = None,
 ) -> FastAPI:
+    """Build the serving app. P2 is mounted at ``/v1/p2`` only when a bundle dir is given."""
     api_settings = settings or APISettings.from_env()
     model_provider = provider if provider is not None else configured_provider(api_settings)
 
@@ -102,7 +107,17 @@ def create_app(
     application.state.model_provider = model_provider
     application.state.api_settings = api_settings
     application.state.model_load_failed = False
+    application.state.p2_bundle = None
+    application.state.p2_load_failed = False
     install_exception_handlers(application)
+
+    if p2_bundle_dir is not None:
+        try:
+            application.state.p2_bundle = load_p2_bundle(p2_bundle_dir)
+        except Exception:  # noqa: BLE001 - P2 failure must not take P3 or health down.
+            application.state.p2_load_failed = True
+            logger.error("P2 bundle load failed (MODEL_LOAD_FAILED).")
+        application.include_router(build_p2_router())
 
     @application.get("/health", response_model=HealthResponse, tags=["service"])
     def health() -> HealthResponse:
@@ -173,9 +188,7 @@ def create_app(
         },
         tags=["prediction"],
     )
-    def predict_batch(
-        batch: BatchPredictionRequest, request: Request
-    ) -> BatchPredictionResponse:
+    def predict_batch(batch: BatchPredictionRequest, request: Request) -> BatchPredictionResponse:
         current_provider: ModelProvider = request.app.state.model_provider
         _ensure_provider_ready(request, current_provider)
         settings_for_request: APISettings = request.app.state.api_settings
@@ -227,4 +240,11 @@ def _ensure_provider_ready(request: Request, provider: ModelProvider) -> None:
         raise ModelNotReadyError
 
 
-app = create_app()
+def _optional_path(name: str) -> Path | None:
+    value = os.environ.get(name, "").strip()
+    return Path(value) if value else None
+
+
+# Entrypoint de uvicorn (Containerfile y desarrollo). Sin variables, P3 usa el
+# provider configurado y P2 no se monta.
+app = create_app(p2_bundle_dir=_optional_path("MIBICI_P2_BUNDLE_DIR"))

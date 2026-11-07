@@ -1,0 +1,41 @@
+$ docker ps --filter name=mibici-serving --format "table {{.Names}}	{{.Image}}	{{.Status}}	{{.Ports}}"
+NAMES            IMAGE                   STATUS                    PORTS
+mibici-serving   mibici-serving:latest   Up 13 seconds (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+
+$ docker exec mibici-serving id
+uid=10001(app) gid=10001(app) groups=10001(app)
+
+$ curl -s http://localhost:8000/ready
+{"status":"ready","model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","ready":true}
+
+$ curl -s http://localhost:8000/model
+{"model_name":"mibici-equipo49-p3-grupos","model_uri":"models:/mibici-equipo49-p3-grupos@champion","model_alias":"champion","model_version":"1","feature_names":["capacidad","salidas_12m","llegadas_12m"],"ready":true}
+
+$ curl -s -X POST http://localhost:8000/predict  (P3, station_id opcional)
+{"station_id":"EC-042","cluster":7,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}
+
+$ curl -s -X POST http://localhost:8000/predict/batch  (P3, 2 estaciones)
+{"predictions":[{"station_id":"EC-042","cluster":7,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"},{"station_id":"EC-007","cluster":0,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}],"count":2,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}
+
+$ curl -s -w "HTTP %{http_code}" -X POST http://localhost:8000/predict  (P3, capacidad negativa)
+{"error":{"code":"REQUEST_VALIDATION_ERROR","message":"La solicitud no cumple el contrato."}} HTTP 422
+
+$ curl -s http://localhost:8000/v1/p2/model
+{"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1","umbral":0.200205,"score_kind":"predict_proba_positive","feature_names":["hora","dia_semana","fin_de_semana","capacidad","flujo_acumulado","flujo_acumulado_sobre_c","llegadas_1h","salidas_1h","llegadas_2h","salidas_2h","salidas_misma_hora_ayer","riesgo_observado_h","riesgo_observado_previo_h","tendencia_flujo_3h"],"ready":true}
+
+$ curl -s -X POST http://localhost:8000/v1/p2/predict  (P2, registro de la documentacion)
+{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.200205,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"}
+
+$ curl -s -w "HTTP %{http_code}" -X POST http://localhost:8000/v1/p2/predict  (P2, hora=25)
+{"error":{"code":"REQUEST_VALIDATION_ERROR","message":"La solicitud no cumple el contrato."}} HTTP 422
+$ docker images mibici-serving --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
+mibici-serving:latest  996MB
+$ docker inspect -f "{{.State.Health.Status}}" mibici-serving
+healthy
+
+# Verificacion adicional de P2 batch (7 nov 2026, mismo contenedor mibici-serving en ejecucion)
+$ curl -s -X POST http://localhost:8000/v1/p2/predict/batch  (P2, 2 registros)
+{"predicciones":[{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.200205,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"},{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.200205,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"}],"count":2} HTTP 200
+
+$ curl -s -w " HTTP %{http_code}" -X POST http://localhost:8000/v1/p2/predict/batch  (P2, hora=25 en un registro)
+{"error":{"code":"REQUEST_VALIDATION_ERROR","message":"La solicitud no cumple el contrato."}} HTTP 422

@@ -1,0 +1,40 @@
+# Contexto de build del Containerfile: solo lo necesario para el servicio.
+# Nada de secretos, datos, entornos virtuales, MLflow ni evidencias.
+
+# Secretos y configuracion local
+.env
+.env.*
+!.env.example
+
+# Control de versiones y caches
+.git
+.github
+.pytest_cache
+.ruff_cache
+.mypy_cache
+__pycache__
+**/__pycache__
+*.py[cod]
+
+# Entornos virtuales
+.venv
+.venv-*
+
+# Datos, MLflow y artefactos de entrenamiento
+data
+mlruns
+mlartifacts
+mlflow.db
+work
+reports
+notebooks
+references
+docs
+tests
+
+# Modelos: solo el bundle del servicio que se va a empaquetar
+models/*
+!models/serving
+models/serving/*
+!models/serving/p2
+!models/serving/p3

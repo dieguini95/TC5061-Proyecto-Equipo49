@@ -1,0 +1,38 @@
+$ pytest -v tests/api/test_mlflow_provider.py tests/api/test_p2_router.py tests/api/test_export_p3.py
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.1.1, pluggy-1.7.0 -- /Users/Diego.Sanchez/Documents/other/MNA/mlops/proyecto/TC5061-Proyecto-Equipo49/.venv/bin/python
+rootdir: /Users/Diego.Sanchez/Documents/other/MNA/mlops/proyecto/TC5061-Proyecto-Equipo49
+configfile: pyproject.toml
+plugins: platformdirs-4.13.3, anyio-4.15.1
+collecting ... collected 28 items
+
+tests/api/test_mlflow_provider.py::test_registry_provider_loads_alias_and_predicts_integer_labels PASSED [  3%]
+tests/api/test_mlflow_provider.py::test_exported_directory_serves_without_any_registry PASSED [  7%]
+tests/api/test_mlflow_provider.py::test_exported_directory_with_other_alias_is_load_error PASSED [ 10%]
+tests/api/test_mlflow_provider.py::test_missing_exported_directory_is_load_error PASSED [ 14%]
+tests/api/test_mlflow_provider.py::test_registry_alias_that_does_not_exist_is_load_error PASSED [ 17%]
+tests/api/test_mlflow_provider.py::test_app_serves_registry_model_through_the_shared_endpoints PASSED [ 21%]
+tests/api/test_mlflow_provider.py::test_normalize_labels_returns_one_dimensional_list[output0-expected0] PASSED [ 25%]
+tests/api/test_mlflow_provider.py::test_normalize_labels_returns_one_dimensional_list[output1-expected1] PASSED [ 28%]
+tests/api/test_mlflow_provider.py::test_normalize_labels_returns_one_dimensional_list[output2-expected2] PASSED [ 32%]
+tests/api/test_mlflow_provider.py::test_normalize_labels_rejects_ambiguous_shapes[output0] PASSED [ 35%]
+tests/api/test_mlflow_provider.py::test_normalize_labels_rejects_ambiguous_shapes[output1] PASSED [ 39%]
+tests/api/test_p2_router.py::test_ready_and_model_expose_contract_and_threshold PASSED [ 42%]
+tests/api/test_p2_router.py::test_predict_returns_probability_and_threshold_flag PASSED [ 46%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation0] PASSED [ 50%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation1] PASSED [ 53%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation2] PASSED [ 57%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation3] PASSED [ 60%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation4] PASSED [ 64%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation5] PASSED [ 67%]
+tests/api/test_p2_router.py::test_predict_rejects_invalid_records_with_422[mutation6] PASSED [ 71%]
+tests/api/test_p2_router.py::test_predict_rejects_missing_field_and_nan_without_500 PASSED [ 75%]
+tests/api/test_p2_router.py::test_batch_predicts_each_record_and_limits_size PASSED [ 78%]
+tests/api/test_p2_router.py::test_missing_bundle_is_503_while_p3_and_health_stay_up PASSED [ 82%]
+tests/api/test_p2_router.py::test_feature_contract_mismatch_is_503 PASSED [ 85%]
+tests/api/test_p2_router.py::test_p2_is_not_mounted_without_a_bundle_dir PASSED [ 89%]
+tests/api/test_export_p3.py::test_exported_metadata_identifies_champion_without_local_paths PASSED [ 92%]
+tests/api/test_export_p3.py::test_exported_model_predicts_exactly_like_the_registry PASSED [ 96%]
+tests/api/test_export_p3.py::test_export_only_supports_the_pyfunc_question PASSED [100%]
+
+============================== 28 passed in 6.91s ==============================

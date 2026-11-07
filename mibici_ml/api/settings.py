@@ -18,6 +18,7 @@ class APISettings:
     model_name: str
     model_alias: str
     max_batch_size: int = DEFAULT_MAX_BATCH_SIZE
+    model_path: str | None = None
 
     def __post_init__(self) -> None:
         safe_name = re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", self.model_name)
@@ -48,6 +49,9 @@ class APISettings:
         except ValueError as error:
             raise ValueError("MIBICI_MAX_BATCH_SIZE must be an integer.") from error
         provider = os.environ.get("MIBICI_API_PROVIDER")
+        # Directorio exportado del Registry (dentro de la imagen). Si no se define,
+        # el provider de MLflow carga el alias desde MLFLOW_TRACKING_URI.
+        model_path = os.environ.get("MIBICI_MODEL_PATH") or None
 
         return cls(
             provider=provider,
@@ -55,4 +59,5 @@ class APISettings:
             model_name=model_name,
             model_alias=model_alias,
             max_batch_size=max_batch_size,
+            model_path=model_path,
         )

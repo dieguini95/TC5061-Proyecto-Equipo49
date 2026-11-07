@@ -6,6 +6,10 @@ PROJECT_NAME = TC5061-Proyecto-Equipo49
 PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
 QUALITY_PYTHON = .venv-quality/bin/python
+SERVING_PYTHON ?= $(PYTHON_INTERPRETER)
+QUESTION ?= p2
+ENGINE ?= docker
+PORT ?= 8000
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -75,6 +79,33 @@ security:
 ## Run offline checks and dependency audit
 security-audit:
 	bash scripts/run_security_checks.sh --with-audit
+
+
+## Exporta el champion del Registry a models/serving/<QUESTION> (QUESTION=p2|p3)
+.PHONY: serving-export
+serving-export:
+	$(SERVING_PYTHON) -m mibici_ml.serving.export --question $(QUESTION)
+
+## Exporta P2 y P3: lo que empaqueta la imagen
+.PHONY: serving-export-all
+serving-export-all:
+	$(MAKE) serving-export QUESTION=p2
+	$(MAKE) serving-export QUESTION=p3
+
+## Construye la imagen de la API con ENGINE=docker|podman
+.PHONY: serving-build
+serving-build:
+	$(ENGINE) build -f Containerfile -t mibici-serving:latest .
+
+## Ejecuta el contenedor de la API en el puerto PORT (8000 por defecto)
+.PHONY: serving-run
+serving-run:
+	$(ENGINE) run --rm -p $(PORT):8000 --name mibici-serving mibici-serving:latest
+
+## Pruebas de la API y del contrato de serving (no requieren contenedor)
+.PHONY: serving-test
+serving-test:
+	$(SERVING_PYTHON) -m pytest -q tests/api tests/test_serving_contract.py
 
 
 ## Set up Python interpreter environment
