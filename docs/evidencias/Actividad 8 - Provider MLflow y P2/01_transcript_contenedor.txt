@@ -32,3 +32,10 @@ $ docker images mibici-serving --format "{{.Repository}}:{{.Tag}}  {{.Size}}"
 mibici-serving:latest  996MB
 $ docker inspect -f "{{.State.Health.Status}}" mibici-serving
 healthy
+
+# Verificacion adicional de P2 batch (7 nov 2026, mismo contenedor mibici-serving en ejecucion)
+$ curl -s -X POST http://localhost:8000/v1/p2/predict/batch  (P2, 2 registros)
+{"predicciones":[{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.200205,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"},{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.200205,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"}],"count":2} HTTP 200
+
+$ curl -s -w " HTTP %{http_code}" -X POST http://localhost:8000/v1/p2/predict/batch  (P2, hora=25 en un registro)
+{"error":{"code":"REQUEST_VALIDATION_ERROR","message":"La solicitud no cumple el contrato."}} HTTP 422
