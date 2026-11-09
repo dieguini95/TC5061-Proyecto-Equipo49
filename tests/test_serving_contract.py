@@ -167,3 +167,16 @@ def test_read_metadata_rejects_incomplete_bundle(tmp_path):
     (tmp_path / "model_metadata.json").write_text('{"question": "p2"}', encoding="utf-8")
     with pytest.raises(bundle_module.BundleError, match="incompletos"):
         bundle_module.read_metadata(tmp_path)
+
+
+def test_exported_bundle_is_versioned_so_the_image_builds_from_a_clean_clone():
+    for rel in (
+        "models/serving/p2/model.skops",
+        "models/serving/p2/model_metadata.json",
+        "models/serving/p3/model/MLmodel",
+        "models/serving/p3/model/python_model.pkl",
+        "models/serving/p3/model_metadata.json",
+    ):
+        assert (REPO_ROOT / rel).is_file(), f"Falta {rel} en el repositorio"
+    mlmodel = (REPO_ROOT / "models/serving/p3/model/MLmodel").read_text(encoding="utf-8")
+    assert "/Users/" not in mlmodel and "/home/" not in mlmodel, "MLmodel expone una ruta local"

@@ -231,5 +231,9 @@ pip-audit-*.json
 *.sqlite
 *.sqlite3
 
-# Servicio de inferencia (Actividad 8): bundles exportados del Registry, no versionados
-models/serving/
+# Servicio de inferencia (Actividad 8): models/serving/ SI se versiona (3 MB) para que la imagen
+# se construya desde un clon limpio. Regenerar con `make serving-export-all`.
+
+# Excepcion: binarios del servicio de inferencia (Actividad 8), exportados del Registry del equipo
+!models/serving/p2/model.skops
+!models/serving/p3/model/python_model.pkl

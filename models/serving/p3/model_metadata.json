@@ -1,0 +1,20 @@
+{
+  "question": "p3",
+  "registry_model_name": "mibici-equipo49-p3-grupos",
+  "alias": "champion",
+  "version": "1",
+  "source_run_id": "8c5ecfac5218433883a30c0b222bcf28",
+  "model_family": "kmeans",
+  "model_flavor": "pyfunc",
+  "model_dir": "model",
+  "score_kind": "cluster_label",
+  "feature_names": [
+    "capacidad",
+    "salidas_12m",
+    "llegadas_12m"
+  ],
+  "threshold": null,
+  "selected_k": "8",
+  "data_version": "sha256:ee581cfe2a02c33f9127446b57d7c4d3c1d6f7cd1e55ed630258bb928bcf1d1c",
+  "git_commit": "8f44e11da183eefe0609719c91d4e1d12949d01e"
+}

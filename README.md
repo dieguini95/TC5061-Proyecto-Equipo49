@@ -4,7 +4,12 @@ Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**: propuesta y ba
 MLflow Project y tracking avanzado (Etapa 2).
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
-> **Estado (1 de noviembre de 2026, Actividad 7):** `main` incluye las pruebas PyTest, la validación de datos con
+> **Estado (8 de noviembre de 2026, Actividad 8):** `main` incluye la API REST en contenedor (FastAPI) que sirve
+> P3 desde el Model Registry y P2 en `/v1/p2`, con `Containerfile` verificado en Docker y Podman. El modelo exportado
+> está versionado en `models/serving/`, así que la imagen se construye desde un clon limpio. Ver
+> [Servicio de inferencia en contenedor](#servicio-de-inferencia-en-contenedor-actividad-8).
+>
+> **Estado previo (1 de noviembre de 2026, Actividad 7):** `main` incluye las pruebas PyTest, la validación de datos con
 > DeepChecks para P1 y P2, y los chequeos de seguridad (Bandit, pip-audit y un script offline). Ver
 > [Actividad 7: pruebas y chequeos](#actividad-7-pruebas-y-chequeos).
 >
@@ -662,6 +667,7 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 | 12 | README final | Hecho en este PR (`chore/readme-etapa2-final`) |
 | 13 | Etapa 2: MLflow Project y Model Registry | Hecho: entry points `ingest`, `train`, `search_p1`, `search_p2` y `search_p3`; champion de P1, P2 y P3 registrados |
 | 14 | Actividad 7 (Etapa 3): pruebas PyTest, DeepChecks y chequeos de seguridad | Hecho: capturas de P1 incorporadas en el PR #14 (ver [Actividad 7](#actividad-7-pruebas-y-chequeos)) |
+| 15 | Actividad 8 (Etapa 4): API REST en contenedor Podman/Docker | Hecho: PR #15, #16 y #17 (ver [Actividad 8](#servicio-de-inferencia-en-contenedor-actividad-8)) |
 
 Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
 se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
@@ -940,7 +946,7 @@ El equipo verificó el `Containerfile` con **Docker 29.8 en arm64** y con **Podm
 
 ### Decisiones
 
-- **Opción de Registry: el modelo se empaqueta en la imagen.** Las rutas de artefactos del Registry local apuntan al host, y el contenedor no debe depender de `mlflow.db` ni de `mlruns/`. `make serving-export-all` toma cada champion por nombre y alias, verifica que sus predicciones coincidan con las del Registry y deja `models/serving/{p2,p3}` (ignorado por Git). Dentro de la imagen, `MIBICI_MODEL_PATH` apunta al modelo exportado y no hay conexión a tracking.
+- **Opción de Registry: el modelo se empaqueta en la imagen.** Las rutas de artefactos del Registry local apuntan al host, y el contenedor no debe depender de `mlflow.db` ni de `mlruns/`. `make serving-export-all` toma cada champion por nombre y alias, verifica que sus predicciones coincidan con las del Registry y deja `models/serving/{p2,p3}`, que se versiona en Git (3 MB) para que la imagen se construya desde un clon limpio. Dentro de la imagen, `MIBICI_MODEL_PATH` apunta al modelo exportado y no hay conexión a tracking.
 - **Estrategia de despliegue: inferencia en tiempo real (síncrona).** Cada consulta describe una estación en un instante `t` y se responde en milisegundos, sin cola. Para evaluar varias estaciones en una llamada existen `/predict/batch` (hasta 500 registros en P2 y 100 en P3). Un procesamiento por lotes sería la alternativa si el consumidor solo necesitara reportes diarios, y no es el caso de la operación de estaciones.
 - **Un contenedor para los dos modelos.** Evita duplicar infraestructura. Cada pregunta nueva entra como un router o un provider más, con el mismo patrón.
 - **Seguridad de carga.** P2 se carga solo desde skops con tipos de confianza declarados, sin `pickle`. P3 es pyfunc, así que MLflow lo deserializa con cloudpickle; por eso el bundle solo se construye desde el Registry del equipo y se verifica contra él. La imagen corre como UID 10001, sin privilegios.
@@ -959,22 +965,30 @@ El equipo verificó el `Containerfile` con **Docker 29.8 en arm64** y con **Podm
 
 ### Cómo reproducir
 
-Desde la raíz, con el entorno del proyecto (`.venv` con `requirements.txt`) y el `mlflow.db` local:
+**Desde un clon limpio** (no requiere `mlflow.db`, `mlruns/` ni datos): los modelos exportados ya están en
+`models/serving/` (3 MB), así que basta con construir y ejecutar.
+
+```bash
+git clone https://github.com/dieguini95/TC5061-Proyecto-Equipo49.git && cd TC5061-Proyecto-Equipo49
+make serving-build ENGINE=podman           # o ENGINE=docker
+make serving-run ENGINE=podman PORT=8000   # API en http://localhost:8000/docs
+curl -s http://localhost:8000/ready
+```
+
+**Regenerar los modelos** (solo si cambia el champion del Registry), con el entorno del proyecto
+(`.venv` con `requirements.txt`) y el `mlflow.db` local:
 
 ```bash
 make serving-export-all                    # models/serving/p2 y models/serving/p3 desde el Registry
 make serving-test                          # pruebas de la API y del contrato
-make serving-build ENGINE=docker           # o ENGINE=podman
-make serving-run ENGINE=docker PORT=8000
 ```
 
 ### Prueba local con Podman
 
-Desde Bash (Ubuntu/WSL2 en Windows), usar los modelos exportados en el paso anterior.
-Comprobar que existen `models/serving/p3/model/MLmodel`, `models/serving/p2/model.skops` y los dos
-`model_metadata.json`. Si el Registry está en un servidor, configurar `MLFLOW_TRACKING_URI` **al exportar**.
-El exportador P2 también necesita leer los artefactos desde la ruta registrada o desde `mlruns/` en la
-máquina que exporta. Una vez construida la imagen, el contenedor no necesita conexión a MLflow.
+Desde Bash (Ubuntu/WSL2 en Windows) en la raíz del repositorio. Los modelos ya vienen en `models/serving/`
+(`p3/model/MLmodel`, `p2/model.skops` y los dos `model_metadata.json`). Si se regeneran y el Registry está en un
+servidor, configurar `MLFLOW_TRACKING_URI` **al exportar**. Una vez construida la imagen, el contenedor no
+necesita conexión a MLflow.
 
 ```bash
 podman build --layers --format docker --ignorefile .dockerignore -f Containerfile \
@@ -1092,7 +1106,7 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 - P3 devuelve el cluster, no una probabilidad ni un umbral.
 - P2 tiene una clase positiva rara (0.46 % de las filas): la API entrega probabilidad y bandera de umbral, no una garantía operativa.
 - El inventario de P2 es una aproximación desde viajes. Quien consume la API debe enviar el estado observado hasta `t` en las variables `riesgo_observado_*`.
-- Para construir desde un clon limpio se deben exportar los modelos. Sus binarios, los registros locales de MLflow y los datos permanecen excluidos de Git.
+- Solo los modelos exportados (`models/serving/`) están en Git. Los registros locales de MLflow (`mlflow.db`, `mlruns/`) y los datos permanecen excluidos; regenerar el bundle requiere el Registry del equipo.
 
 ## Licencia
 

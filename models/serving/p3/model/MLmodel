@@ -1,0 +1,32 @@
+artifact_path: model
+flavors:
+  python_function:
+    cloudpickle_version: 3.1.2
+    code: code
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pyfunc.model
+    python_model: python_model.pkl
+    python_version: 3.12.13
+    streamable: false
+is_signature_from_type_hint: false
+mlflow_version: 3.17.1
+model_id: m-b39aade769454ed6bd509e52e1ddf18f
+model_size_bytes: 3993
+model_uuid: m-b39aade769454ed6bd509e52e1ddf18f
+prompts: null
+run_id: 8c5ecfac5218433883a30c0b222bcf28
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "double", "name": "capacidad", "required": true}, {"type": "double",
+    "name": "salidas_12m", "required": true}, {"type": "double", "name": "llegadas_12m",
+    "required": true}]'
+  outputs: '[{"type": "long", "name": "cluster", "required": true}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-11-05 12:38:28.479649'
