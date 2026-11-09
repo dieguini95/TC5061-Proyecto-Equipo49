@@ -936,7 +936,7 @@ Una sola imagen sirve dos modelos del Registry con la misma aplicación FastAPI 
 - **P3** (`mibici-equipo49-p3-grupos@champion`) en la raíz: `/health`, `/ready`, `/model`, `/predict` y `/predict/batch`. Lo sirve `MLflowModelProvider` desde `models/serving/p3/model`.
 - **P2** (`mibici-equipo49-p2-riesgo@champion`) como router en `/v1/p2`: `/v1/p2/ready`, `/v1/p2/model`, `/v1/p2/predict` y `/v1/p2/predict/batch`. Lo sirve un bundle skops desde `models/serving/p2`.
 
-El `Containerfile` funciona con Podman o Docker. La verificación de esta entrega se hizo con **Docker 29.8** sobre arm64; el comando de Podman es equivalente.
+El equipo verificó el `Containerfile` con **Docker 29.8 en arm64** y con **Podman 5.7.0 sin privilegios en Ubuntu/WSL2, linux/amd64**. En ambas ejecuciones la API carga los modelos exportados al iniciar el contenedor.
 
 ### Decisiones
 
@@ -968,12 +968,33 @@ make serving-build ENGINE=docker           # o ENGINE=podman
 make serving-run ENGINE=docker PORT=8000
 ```
 
-Equivalente directo con Podman:
+### Prueba local con Podman
+
+Desde Bash (Ubuntu/WSL2 en Windows), usar los modelos exportados en el paso anterior.
+Comprobar que existen `models/serving/p3/model/MLmodel`, `models/serving/p2/model.skops` y los dos
+`model_metadata.json`. Si el Registry está en un servidor, configurar `MLFLOW_TRACKING_URI` **al exportar**.
+El exportador P2 también necesita leer los artefactos desde la ruta registrada o desde `mlruns/` en la
+máquina que exporta. Una vez construida la imagen, el contenedor no necesita conexión a MLflow.
 
 ```bash
-podman build -f Containerfile -t mibici-serving .
-podman run --rm -p 8000:8000 mibici-serving
+podman build --layers --format docker --ignorefile .dockerignore -f Containerfile \
+  -t localhost/mibici-serving:actividad8 .
+podman run -d --name mibici-podman-act8 -p 127.0.0.1:18080:8000 \
+  localhost/mibici-serving:actividad8
+
+# Esperar a que carguen ambos modelos antes de pedir la predicción.
+curl -fsS --retry 24 --retry-all-errors --retry-delay 2 --max-time 5 http://127.0.0.1:18080/ready && \
+curl -fsS --retry 24 --retry-all-errors --retry-delay 2 --max-time 5 http://127.0.0.1:18080/v1/p2/ready && \
+curl -fsS -w '\nHTTP %{http_code}\n' http://127.0.0.1:18080/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"station_id":"EC-042","capacidad":30,"salidas_12m":1200,"llegadas_12m":900}'
 ```
+
+El motor es Podman. `--format docker` conserva el `HEALTHCHECK` declarado en el `Containerfile`.
+`/health` comprueba el proceso. `/ready` comprueba la disponibilidad del modelo y `/predict` verifica
+la inferencia completa. Swagger UI está en `http://127.0.0.1:18080/docs`. Para repetir la ejecución
+con el mismo nombre, detener y retirar primero este contenedor con `podman stop mibici-podman-act8`
+y `podman rm mibici-podman-act8`.
 
 ### Endpoints
 
@@ -1038,6 +1059,11 @@ Respuesta:
 
 Captura de la API respondiendo desde el contenedor: `docs/evidencias/Actividad 8 - Provider MLflow y P2/01_api_contenedor_p3_p2.png`.
 
+En el [índice de evidencias de la Actividad 8](docs/evidencias/Actividad%208/README.md) se encuentran
+las verificaciones del equipo. La [captura de Swagger en Podman](docs/evidencias/Actividad%208/Verificacion%20con%20Podman/01_predict_podman.jpg)
+muestra la respuesta HTTP 200 y el clúster `7`. La [transcripción](docs/evidencias/Actividad%208/Verificacion%20con%20Podman/02_verificacion_podman.txt)
+identifica el contenedor y muestra las respuestas de P3 y P2, incluidas las entradas rechazadas con HTTP 422.
+
 ### Verificación
 
 | Control | Resultado |
@@ -1052,13 +1078,21 @@ Captura de la API respondiendo desde el contenedor: `docs/evidencias/Actividad 8
 | `ruff check` sobre `mibici_ml` y `tests` | Sin errores. |
 | `scripts/run_security_checks.sh` | Bandit sin hallazgos medios ni altos en el gate; código final 0. |
 
+Saúl ejecutó la suite específica de API y contrato en el entorno anfitrión: **95 passed, 3 warnings**.
+El contenedor Podman quedó `healthy`, ejecutó la aplicación como UID `10001` y devolvió para P2
+`riesgo_prob=0.0005925946619037167`, `riesgo_alto=false`, con umbral `0.2002045660284505`.
+
+Para medir el tamaño, se construyeron dos imágenes completas con Podman, la misma base, arquitectura,
+dependencias y modelos. Omitir la precompilación de bytecode con `pip --no-compile` redujo el tamaño
+local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro **23.25 %**).
+
 ### Limitaciones
 
-- La imagen pesa cerca de 1 GB porque incluye MLflow y matplotlib. Reducirla (capas, `mlflow-skinny` sin extras, imagen base más ligera) queda como mejora.
+- La medición histórica de Docker arm64 fue de 996 MB. La comparación de tamaño anterior corresponde a dos imágenes linux/amd64 medidas con el mismo Podman.
 - P3 devuelve el cluster, no una probabilidad ni un umbral.
 - P2 tiene una clase positiva rara (0.46 % de las filas): la API entrega probabilidad y bandera de umbral, no una garantía operativa.
 - El inventario de P2 es una aproximación desde viajes. Quien consume la API debe enviar el estado observado hasta `t` en las variables `riesgo_observado_*`.
-- La verificación se hizo con Docker. Falta la ejecución con Podman, que queda a cargo de la tarea de endurecimiento del Containerfile.
+- Para construir desde un clon limpio se deben exportar los modelos. Sus binarios, los registros locales de MLflow y los datos permanecen excluidos de Git.
 
 ## Licencia
 

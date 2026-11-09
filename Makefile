@@ -10,6 +10,10 @@ SERVING_PYTHON ?= $(PYTHON_INTERPRETER)
 QUESTION ?= p2
 ENGINE ?= docker
 PORT ?= 8000
+ifeq ($(ENGINE),podman)
+# Conserva el HEALTHCHECK definido en el Containerfile al construir con Podman.
+SERVING_BUILD_FLAGS := --format docker
+endif
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -95,7 +99,7 @@ serving-export-all:
 ## Construye la imagen de la API con ENGINE=docker|podman
 .PHONY: serving-build
 serving-build:
-	$(ENGINE) build -f Containerfile -t mibici-serving:latest .
+	$(ENGINE) build $(SERVING_BUILD_FLAGS) -f Containerfile -t mibici-serving:latest .
 
 ## Ejecuta el contenedor de la API en el puerto PORT (8000 por defecto)
 .PHONY: serving-run

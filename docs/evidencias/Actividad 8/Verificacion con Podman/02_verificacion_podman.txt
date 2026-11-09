@@ -1,0 +1,144 @@
+MiBici · Verificación del servicio con Podman
+Registro local del 2026-11-08 en Ubuntu WSL2 (linux/amd64).
+Las secciones HTTP y PyTest transcriben las ejecuciones conservadas en work/actividad8-podman.
+
+Motor y base
+============
+
+Comando
+wsl -d Ubuntu -- podman version
+Salida
+Client:        Podman Engine
+Version:       5.7.0
+API Version:   5.7.0
+Go Version:    go1.25.0
+Built:         Mon Feb 23 09:35:32 2026
+Build Origin:  Ubuntu
+OS/Arch:       linux/amd64
+
+Comando
+wsl -d Ubuntu -- podman info --format 'rootless={{.Host.Security.Rootless}} arch={{.Host.Arch}} storage={{.Store.GraphDriverName}} runtime={{.Host.OCIRuntime.Name}}'
+Salida
+rootless=true arch=amd64 storage=overlay runtime=crun
+
+Comando
+wsl -d Ubuntu -- podman image inspect docker.io/library/python:3.12-slim --format '{{.Digest}}'
+Salida
+sha256:05a994d2344eb364cc186910f4fc8786a38215f39f00d0acc25bff33a08f4177
+
+
+Construcción y tamaño de las imágenes
+=====================================
+
+Las dos imágenes usan linux/amd64, la misma base y los mismos bundles. La variante final
+omite la compilación anticipada del bytecode durante la instalación de dependencias.
+
+Comando
+wsl -d Ubuntu -- podman image inspect localhost/mibici-serving:actividad8-base --format '{{.Id}} {{.Size}} {{.Architecture}}'
+Salida
+4db3af7e47225447eac6474077f690ef409583659a9b89acf72d7b4a948dfe52 689397165 amd64
+
+Comando
+wsl -d Ubuntu -- podman image inspect localhost/mibici-serving:actividad8 --format '{{.Id}} {{.Size}} {{.Architecture}}'
+Salida
+d9e4052bd21ab56de8043f2366ec2336ae9a28863a2eb9747db399d2d9376037 529138103 amd64
+
+Diferencia de tamaño local que informa Podman: 160259062 bytes (23.25% del tamaño de referencia).
+
+Extracto final de work/actividad8-podman/build-base.log
+STEP 13/13: CMD ["uvicorn", "mibici_ml.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+COMMIT localhost/mibici-serving:actividad8-base
+--> 4db3af7e4722
+Successfully tagged localhost/mibici-serving:actividad8-base
+4db3af7e47225447eac6474077f690ef409583659a9b89acf72d7b4a948dfe52
+
+Extracto final de work/actividad8-podman/build-final.log
+STEP 13/13: CMD ["uvicorn", "mibici_ml.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+COMMIT localhost/mibici-serving:actividad8
+--> d9e4052bd21a
+Successfully tagged localhost/mibici-serving:actividad8
+d9e4052bd21ab56de8043f2366ec2336ae9a28863a2eb9747db399d2d9376037
+
+Comando
+wsl -d Ubuntu -- podman run --rm --network none --entrypoint python localhost/mibici-serving:actividad8-base -c 'from pathlib import Path; from hashlib import sha256; root=Path(''/app/models/serving''); h=sha256(); files=sorted(p for p in root.rglob(''*'') if p.is_file()); [(h.update(p.relative_to(root).as_posix().encode()+bytes([0])),h.update(sha256(p.read_bytes()).digest())) for p in files]; print(f''{len(files)} archivos, SHA-256 {h.hexdigest()}'')'
+Salida
+45 archivos, SHA-256 a58a579f46f60b62b926858fcf0fddb43931844bfde0a79e2e5eb69cedf06b6c
+
+Comando
+wsl -d Ubuntu -- podman run --rm --network none --entrypoint python localhost/mibici-serving:actividad8 -c 'from pathlib import Path; from hashlib import sha256; root=Path(''/app/models/serving''); h=sha256(); files=sorted(p for p in root.rglob(''*'') if p.is_file()); [(h.update(p.relative_to(root).as_posix().encode()+bytes([0])),h.update(sha256(p.read_bytes()).digest())) for p in files]; print(f''{len(files)} archivos, SHA-256 {h.hexdigest()}'')'
+Salida
+45 archivos, SHA-256 a58a579f46f60b62b926858fcf0fddb43931844bfde0a79e2e5eb69cedf06b6c
+
+
+Contenedor en ejecución
+=======================
+
+Comando
+wsl -d Ubuntu -- podman ps --filter name=mibici-podman-act8 --format '{{.Names}} {{.Image}} {{.Status}} {{.Ports}}'
+Salida
+mibici-podman-act8 localhost/mibici-serving:actividad8 Up 6 minutes (healthy) 127.0.0.1:18080->8000/tcp
+
+Comando
+wsl -d Ubuntu -- podman inspect mibici-podman-act8 --format '{{.State.Health.Status}}'
+Salida
+healthy
+
+Comando
+wsl -d Ubuntu -- podman exec mibici-podman-act8 id
+Salida
+uid=10001(app) gid=10001(app) groups=10001(app)
+
+Comando
+wsl -d Ubuntu -- podman exec mibici-podman-act8 python -m pip check
+Salida
+No broken requirements found.
+
+Comando
+wsl -d Ubuntu -- podman exec mibici-podman-act8 python -c 'from pathlib import Path; import json; print(json.dumps({p:Path(p).exists() for p in [''/app/.env'', ''/app/.git'', ''/app/data'', ''/app/work'', ''/app/mlruns'', ''/app/mlartifacts'', ''/app/mlflow.db'']}))'
+Salida
+{"/app/.env": false, "/app/.git": false, "/app/data": false, "/app/work": false, "/app/mlruns": false, "/app/mlartifacts": false, "/app/mlflow.db": false}
+
+
+Peticiones y respuestas HTTP
+============================
+
+Se registraron 11 peticiones (5 GET y 6 POST): 9 respuestas HTTP 200 y 2 respuestas HTTP 422 por entradas fuera del esquema.
+Salida íntegra de work/actividad8-podman/http-final.txt
+
+GET http://127.0.0.1:18080/health
+HTTP 200 {"status":"ok","service":"mibici-p3-api","version":"0.0.1"}
+GET http://127.0.0.1:18080/ready
+HTTP 200 {"status":"ready","model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","ready":true}
+GET http://127.0.0.1:18080/model
+HTTP 200 {"model_name":"mibici-equipo49-p3-grupos","model_uri":"models:/mibici-equipo49-p3-grupos@champion","model_alias":"champion","model_version":"1","feature_names":["capacidad","salidas_12m","llegadas_12m"],"ready":true}
+GET http://127.0.0.1:18080/v1/p2/ready
+HTTP 200 {"status":"ready","ready":true}
+GET http://127.0.0.1:18080/v1/p2/model
+HTTP 200 {"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1","umbral":0.2002045660284505,"score_kind":"predict_proba_positive","feature_names":["hora","dia_semana","fin_de_semana","capacidad","flujo_acumulado","flujo_acumulado_sobre_c","llegadas_1h","salidas_1h","llegadas_2h","salidas_2h","salidas_misma_hora_ayer","riesgo_observado_h","riesgo_observado_previo_h","tendencia_flujo_3h"],"ready":true}
+POST http://127.0.0.1:18080/predict
+{"station_id":"EC-042","capacidad":30,"salidas_12m":1200,"llegadas_12m":900}
+HTTP 200 {"station_id":"EC-042","cluster":7,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}
+POST http://127.0.0.1:18080/predict/batch
+{"items":[{"station_id":"EC-042","capacidad":30,"salidas_12m":1200,"llegadas_12m":900},{"station_id":"EC-042","capacidad":30,"salidas_12m":1200,"llegadas_12m":900}]}
+HTTP 200 {"predictions":[{"station_id":"EC-042","cluster":7,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"},{"station_id":"EC-042","cluster":7,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}],"count":2,"model_name":"mibici-equipo49-p3-grupos","model_alias":"champion","status":"ok"}
+POST http://127.0.0.1:18080/v1/p2/predict
+{"hora":8,"dia_semana":2,"fin_de_semana":0,"capacidad":30,"flujo_acumulado":-4,"flujo_acumulado_sobre_c":-0.1333,"llegadas_1h":3,"salidas_1h":7,"llegadas_2h":5,"salidas_2h":12,"salidas_misma_hora_ayer":9,"riesgo_observado_h":0,"riesgo_observado_previo_h":0,"tendencia_flujo_3h":-0.2}
+HTTP 200 {"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.2002045660284505,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"}
+POST http://127.0.0.1:18080/v1/p2/predict/batch
+{"items":[{"hora":8,"dia_semana":2,"fin_de_semana":0,"capacidad":30,"flujo_acumulado":-4,"flujo_acumulado_sobre_c":-0.1333,"llegadas_1h":3,"salidas_1h":7,"llegadas_2h":5,"salidas_2h":12,"salidas_misma_hora_ayer":9,"riesgo_observado_h":0,"riesgo_observado_previo_h":0,"tendencia_flujo_3h":-0.2},{"hora":8,"dia_semana":2,"fin_de_semana":0,"capacidad":30,"flujo_acumulado":-4,"flujo_acumulado_sobre_c":-0.1333,"llegadas_1h":3,"salidas_1h":7,"llegadas_2h":5,"salidas_2h":12,"salidas_misma_hora_ayer":9,"riesgo_observado_h":0,"riesgo_observado_previo_h":0,"tendencia_flujo_3h":-0.2}]}
+HTTP 200 {"predicciones":[{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.2002045660284505,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"},{"riesgo_prob":0.0005925946619037167,"riesgo_alto":false,"umbral":0.2002045660284505,"modelo":"mibici-equipo49-p2-riesgo@champion","version":"1"}],"count":2}
+POST http://127.0.0.1:18080/predict
+{"station_id":"EC-042","capacidad":-1,"salidas_12m":1200,"llegadas_12m":900}
+HTTP 422 {"error":{"code":"REQUEST_VALIDATION_ERROR","message":"La solicitud no cumple el contrato."}}
+POST http://127.0.0.1:18080/v1/p2/predict
+{"hora":25,"dia_semana":2,"fin_de_semana":0,"capacidad":30,"flujo_acumulado":-4,"flujo_acumulado_sobre_c":-0.1333,"llegadas_1h":3,"salidas_1h":7,"llegadas_2h":5,"salidas_2h":12,"salidas_misma_hora_ayer":9,"riesgo_observado_h":0,"riesgo_observado_previo_h":0,"tendencia_flujo_3h":-0.2}
+HTTP 422 {"error":{"code":"REQUEST_VALIDATION_ERROR","message":"La solicitud no cumple el contrato."}}
+
+Pruebas de la API y su contrato
+===============================
+
+Salida de PyTest al ejecutar tests/api y tests/test_serving_contract.py
+
+........................................................................ [ 75%]
+.......................                                                  [100%]
+95 passed, 3 warnings in 19.46s
