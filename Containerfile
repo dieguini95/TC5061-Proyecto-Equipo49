@@ -4,12 +4,12 @@
 # Compatible con Podman y Docker (estandar OCI).
 #
 #   make serving-export-all                       # genera models/serving/{p2,p3}
-#   podman build -f Containerfile -t mibici-serving .
-#   podman run --rm -p 8000:8000 mibici-serving
+#   podman build --format docker -f Containerfile -t localhost/mibici-serving .
+#   podman run --rm -p 127.0.0.1:8000:8000 localhost/mibici-serving
 #
 # Con Docker: docker build -f Containerfile -t mibici-serving .
 
-FROM python:3.12-slim
+FROM docker.io/library/python:3.12-slim
 
 LABEL org.opencontainers.image.title="mibici-serving" \
       org.opencontainers.image.description="API de inferencia MiBici (FastAPI): P3 desde el Registry y P2 como router"
@@ -31,7 +31,7 @@ RUN groupadd --system --gid 10001 app \
 
 # Dependencias primero: esta capa se reutiliza mientras no cambie requirements-serving.txt.
 COPY requirements-serving.txt ./
-RUN pip install --no-cache-dir -r requirements-serving.txt
+RUN pip install --no-cache-dir --no-compile -r requirements-serving.txt
 
 COPY mibici_ml ./mibici_ml
 COPY models/serving ./models/serving
