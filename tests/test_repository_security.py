@@ -49,6 +49,13 @@ BINARY_SUFFIXES = {
     ".webp",
     ".zip",
 }
+# Unicos binarios de modelo permitidos en Git: el bundle del servicio (Actividad 8), exportado del
+# Registry del equipo para que la imagen se construya desde un clon limpio. Cualquier otro .pkl o
+# .skops sigue prohibido.
+SERVING_BUNDLE_ALLOWLIST = {
+    "models/serving/p2/model.skops",
+    "models/serving/p3/model/python_model.pkl",
+}
 IGNORED_DIRECTORIES = {".git", ".venv", "mlartifacts", "mlruns"}
 IGNORED_PATHS = (
     ".env",
@@ -131,7 +138,7 @@ def _is_fictional_example(path: PurePosixPath) -> bool:
 def _is_sensitive_path(path: PurePosixPath) -> bool:
     parts = tuple(part.lower() for part in path.parts)
     name = path.name.lower()
-    if _is_fictional_example(path):
+    if _is_fictional_example(path) or path.as_posix() in SERVING_BUNDLE_ALLOWLIST:
         return False
     if name == ".env" or name.startswith(".env."):
         return True

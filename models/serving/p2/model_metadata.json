@@ -1,0 +1,36 @@
+{
+  "question": "p2",
+  "registry_model_name": "mibici-equipo49-p2-riesgo",
+  "alias": "champion",
+  "version": "1",
+  "model_id": "m-4e755e95021e4325a135cb361725c644",
+  "source_run_id": "9dca0330ba6241dc8ccdf41d48cf4954",
+  "model_family": "gradient_boosting",
+  "score_kind": "predict_proba_positive",
+  "feature_names": [
+    "hora",
+    "dia_semana",
+    "fin_de_semana",
+    "capacidad",
+    "flujo_acumulado",
+    "flujo_acumulado_sobre_c",
+    "llegadas_1h",
+    "salidas_1h",
+    "llegadas_2h",
+    "salidas_2h",
+    "salidas_misma_hora_ayer",
+    "riesgo_observado_h",
+    "riesgo_observado_previo_h",
+    "tendencia_flujo_3h"
+  ],
+  "threshold": 0.200205,
+  "threshold_source": "tag val_threshold de la version",
+  "data_version": "0f000bd5e6563196d7c1133e119024e4e864f6325752e4f6b48e40011895d1a3",
+  "git_commit": "74d5e51c30f9b7c8ae0a84e1676eea736b7c5cba",
+  "sklearn_version": "1.9.1",
+  "skops_trusted_types": [
+    "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
+    "sklearn.tree._tree.Tree"
+  ],
+  "model_file": "model.skops"
+}

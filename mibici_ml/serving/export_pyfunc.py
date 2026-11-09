@@ -2,7 +2,7 @@
 
 P3 se registra como ``P3ClusterModel`` (pyfunc), no como modelo sklearn, asi que
 no pasa por skops. El exportador descarga el artefacto del alias en
-``models/serving/p3/model``, escribe ``model_metadata.json`` sin rutas locales y
+``models/serving/p3/model``, escribe ``model_metadata.json`` y ``MLmodel`` sin rutas locales y
 verifica que la copia prediga lo mismo que el modelo del Registry.
 """
 
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 import shutil
 from typing import Any
 
@@ -26,6 +27,14 @@ from mibici_ml.config import (
 
 EXPORTED_MODEL_DIR = "model"
 SCORE_KIND_CLUSTER = "cluster_label"
+
+
+def _sanitize_mlmodel(model_dir: Path) -> None:
+    """Reemplaza la ruta local que MLflow deja en ``artifact_path`` por un valor neutro."""
+    mlmodel = model_dir / "MLmodel"
+    text = mlmodel.read_text(encoding="utf-8")
+    clean = re.sub(r"^artifact_path: .*$", f"artifact_path: {EXPORTED_MODEL_DIR}", text, flags=re.MULTILINE)
+    mlmodel.write_text(clean, encoding="utf-8")
 
 
 def _parity_check(model_dir: Path, name: str, alias: str) -> None:
@@ -67,6 +76,8 @@ def export_pyfunc_champion(
         artifact_uri=f"models:/{name}@{alias}",
         dst_path=str(model_dir),
     )
+
+    _sanitize_mlmodel(model_dir)
 
     metadata: dict[str, Any] = {
         "question": question,
