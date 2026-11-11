@@ -216,7 +216,9 @@ mlartifacts/
 
 # Validacion de datos con DeepChecks: entorno aislado y reportes HTML (pueden incluir filas)
 .venv-quality/
+.venv-monitoring/
 reports/data_validation/*.html
+reports/drift/
 
 # Reportes temporales de chequeos de seguridad y archivos sensibles
 bandit-report.json
