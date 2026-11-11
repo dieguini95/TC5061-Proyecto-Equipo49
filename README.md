@@ -1108,6 +1108,21 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 - El inventario de P2 es una aproximación desde viajes. Quien consume la API debe enviar el estado observado hasta `t` en las variables `riesgo_observado_*`.
 - Solo los modelos exportados (`models/serving/`) están en Git. Los registros locales de MLflow (`mlflow.db`, `mlruns/`) y los datos permanecen excluidos; regenerar el bundle requiere el Registry del equipo.
 
+## Monitoreo offline de drift P2 (Actividad 10)
+
+El repositorio incorpora un pipeline reproducible de monitoreo offline para las 14 variables de entrada de P2 v2. La implementación valida el contrato del panel, separa la ventana de referencia (`2025-10-01` a `2026-06-30`) y la ventana histórica de prueba (`2026-09-01` a `2026-09-30`), ejecuta Evidently y genera reportes agregados HTML, JSON, CSV y metadata bajo `reports/drift/`. El proceso no modifica el modelo, MLflow ni el Model Registry.
+
+```bash
+python3.12 -m venv .venv-monitoring
+.venv-monitoring/bin/python -m pip install -r requirements-monitoring.txt
+.venv-monitoring/bin/python -m pytest -q tests/monitoring
+.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --help
+```
+
+La implementación, los controles de privacidad, los comandos y las evidencias están documentados en [docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md](docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md).
+
+La ejecución documentada valida la infraestructura con fixtures sintéticos. No se atribuyen esos resultados a datos reales de MiBici.
+
 ## Licencia
 
 Código bajo licencia [MIT](LICENSE). Los datos son del portal de MiBici; su uso es académico y se atribuye a MiBici.
