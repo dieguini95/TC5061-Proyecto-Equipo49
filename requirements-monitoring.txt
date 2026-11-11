@@ -1,0 +1,11 @@
+# Entorno aislado para monitoreo de drift de la Actividad 10.
+# pandas 3.0.6 evita la incompatibilidad de importacion de Evidently 0.7.23
+# con pandas 3.1.x.
+evidently==0.7.23
+pandas==3.0.6
+pytest==9.2.0
+numpy==2.5.4
+pyarrow==26.0.1
+# Required by mibici_ml's package initialization when importing the CLI.
+loguru==0.7.3
+python-dotenv==1.2.4
