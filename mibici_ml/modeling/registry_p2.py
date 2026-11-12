@@ -6,13 +6,24 @@ guardar su linaje como tags, validar la inferencia y solo entonces mover el alia
 
 from __future__ import annotations
 
+from typing import Any
+
 import mlflow
 from mlflow import MlflowClient
 from mlflow.entities.model_registry import ModelVersion
 import numpy as np
 import pandas as pd
 
-from mibici_ml.config import P2_CHAMPION_ALIAS, P2_REGISTRY_MODEL_NAME
+from mibici_ml.config import (
+    MLFLOW_TRACKING_URI,
+    P2_CHAMPION_ALIAS,
+    P2_REGISTRY_MODEL_NAME,
+    PROJ_ROOT,
+)
+
+# Runs nuevos de la Actividad 10. El experimento ``mibici-equipo49`` guarda rutas absolutas
+# de una copia anterior del repositorio; aqui los artefactos quedan dentro de este repo.
+ACTIVITY10_EXPERIMENT_NAME = "mibici-equipo49-actividad10"
 
 
 def p2_model_description(model_name: str, threshold: float) -> str:
@@ -78,3 +89,32 @@ def assign_p2_alias(
     MlflowClient(tracking_uri=tracking_uri).set_registered_model_alias(
         registry_model_name, alias, str(version)
     )
+
+
+def load_p2_version(version: str) -> Any:
+    """Carga una version del Registry como estimador sklearn (predict_proba).
+
+    Resuelve los artefactos con ``export.find_model_artifacts``: el experimento
+    ``mibici-equipo49`` guarda rutas absolutas de una copia anterior del repositorio.
+    """
+    from mlflow import MlflowClient
+    import mlflow.sklearn
+
+    from mibici_ml.serving.export import find_model_artifacts, resolve_model_id
+
+    client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+    source = client.get_model_version(P2_REGISTRY_MODEL_NAME, str(version)).source
+    artifact_dir = find_model_artifacts(client, resolve_model_id(source))
+    return mlflow.sklearn.load_model(str(artifact_dir))
+
+
+def ensure_activity_experiment() -> str:
+    """Experimento de la Actividad 10 con artefactos dentro de este repositorio."""
+    import mlflow
+
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    if mlflow.get_experiment_by_name(ACTIVITY10_EXPERIMENT_NAME) is None:
+        location = (PROJ_ROOT / "mlruns" / "actividad10").as_uri()
+        mlflow.create_experiment(ACTIVITY10_EXPERIMENT_NAME, artifact_location=location)
+    mlflow.set_experiment(ACTIVITY10_EXPERIMENT_NAME)
+    return ACTIVITY10_EXPERIMENT_NAME
