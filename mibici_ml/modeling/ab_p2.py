@@ -301,6 +301,11 @@ def log_ab_run(
         return run.info.run_id
 
 
+@app.callback()
+def _main() -> None:
+    """A/B offline de P2. Subcomando: ``run``."""
+
+
 @app.command("run")
 def run_command(
     n_boot: int = typer.Option(N_BOOTSTRAP, help="Remuestras bootstrap."),
