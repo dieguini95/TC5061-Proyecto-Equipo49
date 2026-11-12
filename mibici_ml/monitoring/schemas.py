@@ -8,7 +8,7 @@ from typing import Literal
 
 from mibici_ml.monitoring.errors import MonitoringError
 
-WindowRole = Literal["reference", "historical_test"]
+WindowRole = Literal["reference", "historical_test", "out_of_time"]
 
 
 @dataclass(frozen=True)
@@ -28,8 +28,8 @@ class WindowDefinition:
             raise MonitoringError("Window dates must use YYYY-MM-DD.") from error
         if start > end:
             raise MonitoringError("Window start must not be after window end.")
-        if self.role not in {"reference", "historical_test"}:
-            raise MonitoringError("Window role must be reference or historical_test.")
+        if self.role not in {"reference", "historical_test", "out_of_time"}:
+            raise MonitoringError("Window role must be reference, historical_test or out_of_time.")
         if self.inclusive_policy != "both_dates":
             raise MonitoringError("Only inclusive start/end dates are supported.")
         if not self.name:

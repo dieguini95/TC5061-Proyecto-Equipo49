@@ -18,7 +18,9 @@ from mibici_ml.monitoring.schemas import (
 SUPPORTED_EVIDENTLY_VERSION = "0.7.23"
 
 
-def _extract_summary(snapshot: Any, prepared: PreparedWindows, config: DriftConfig) -> DriftSummary:
+def _extract_summary(
+    snapshot: Any, prepared: PreparedWindows, config: DriftConfig
+) -> DriftSummary:
     snapshot_dict = snapshot.dict()
     metrics = snapshot_dict.get("metrics")
     tests = snapshot_dict.get("tests")
@@ -67,9 +69,9 @@ def _extract_summary(snapshot: Any, prepared: PreparedWindows, config: DriftConf
         try:
             score = float(metric["value"])
             threshold = float(
-                metric_config.get("threshold", config.per_column_thresholds.get(
-                    feature, config.column_threshold
-                ))
+                metric_config.get(
+                    "threshold", config.per_column_thresholds.get(feature, config.column_threshold)
+                )
             )
         except (KeyError, TypeError, ValueError) as error:
             raise MonitoringError(f"Invalid Evidently values for feature {feature!r}.") from error
@@ -129,8 +131,17 @@ def _extract_summary(snapshot: Any, prepared: PreparedWindows, config: DriftConf
             )
     dataset_drift_detected = drift_share >= config.dataset_drift_share_threshold
 
+    if prepared.current_window.role == "out_of_time":
+        window_limitation = (
+            "The current window is an out-of-time period after training, reviewed offline; "
+            "it is not production telemetry."
+        )
+    else:
+        window_limitation = (
+            "The current window is a retrospective historical_test, not production telemetry."
+        )
     limitations = [
-        "The current window is a retrospective historical_test, not production telemetry.",
+        window_limitation,
         "Feature drift is a review signal and does not by itself establish model degradation.",
         "Only P2 input features are passed to Evidently; identifiers and timestamps are excluded.",
         "A travel-derived inventory proxy is not observed station inventory.",
@@ -172,6 +183,7 @@ def run_drift_report(
         )
     from evidently import Report
     from evidently.presets import DataDriftPreset, DataSummaryPreset
+
     if list(prepared_windows.reference.columns) != list(config.feature_names):
         raise MonitoringError("Reference columns must match the configured feature order.")
     if list(prepared_windows.current.columns) != list(config.feature_names):
