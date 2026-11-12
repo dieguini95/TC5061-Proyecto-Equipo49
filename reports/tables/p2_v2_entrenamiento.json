@@ -1,0 +1,25 @@
+{
+  "alias": "challenger",
+  "data_version": "220569d9969f3ce27ef1858ac77d303f6f7918734b852d6967f34043bf1697cc",
+  "fit_window": "2025-10-01_to_2026-08-31",
+  "metrics_threshold_window": {
+    "sep_brier": 0.00386963372829168,
+    "sep_f1": 0.4358095238095238,
+    "sep_positive_rate": 0.005322806491135949,
+    "sep_pr_auc": 0.402709376003112,
+    "sep_precision_at_k": 0.03935705368289638,
+    "sep_recall": 0.33587786259541985,
+    "sep_recall_at_precision_50": 0.369935408103347,
+    "sep_roc_auc": 0.9415403269007567
+  },
+  "registry_version": "2",
+  "run_id": "2a0fa001974c4a6180d29033a695842e",
+  "threshold": 0.27304941436356434,
+  "threshold_window": "2026-09-01_to_2026-09-30",
+  "tuned_hyperparams": {
+    "learning_rate": 0.03,
+    "max_iter": 600,
+    "max_leaf_nodes": 15,
+    "min_samples_leaf": 100
+  }
+}

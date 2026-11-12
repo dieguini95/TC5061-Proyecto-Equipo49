@@ -1,0 +1,57 @@
+{
+  "bootstrap": {
+    "nivel_ic": 0.95,
+    "remuestras": 1000,
+    "remuestras_validas": 1000,
+    "semilla": 42,
+    "tipo": "pareado por estacion-dia"
+  },
+  "data_version": "220569d9969f3ce27ef1858ac77d303f6f7918734b852d6967f34043bf1697cc",
+  "delta_brier": -1.3154116836032632e-05,
+  "delta_brier_ic": [
+    -3.0059901059478883e-05,
+    5.008342417739354e-06
+  ],
+  "delta_pr_auc": 0.0029201115096792463,
+  "delta_pr_auc_ic": [
+    0.0002128136497669889,
+    0.0054853658257592265
+  ],
+  "estaciones_dia": 13674,
+  "filas": 328176,
+  "motivo": "IC 95% de delta PR-AUC por encima de cero y Brier no peor.",
+  "positivos": 2265,
+  "promover_v2": true,
+  "regla": "Promover v2 solo si el IC 95% de delta PR-AUC (v2 - v1) tiene limite inferior > 0 y Brier_v2 <= Brier_v1; si no, conservar v1.",
+  "ventana": {
+    "fin": "2026-10-31",
+    "inicio": "2026-10-01",
+    "rol": "out_of_time"
+  },
+  "version_v1": {
+    "alias": "champion",
+    "brier": 0.005200363494322843,
+    "f1_umbral": 0.41776315789473684,
+    "pr_auc": 0.3747625202079128,
+    "precision_top10": 0.04794103313840156,
+    "precision_umbral": 0.5509761388286334,
+    "recall_con_precision_min": 0.35717439293598235,
+    "recall_umbral": 0.33642384105960266,
+    "roc_auc": 0.9291773943648248,
+    "umbral": 0.200205,
+    "version": "1"
+  },
+  "version_v2": {
+    "alias": "challenger",
+    "brier": 0.00518720937748681,
+    "f1_umbral": 0.4113066051341217,
+    "pr_auc": 0.37768263171759203,
+    "precision_top10": 0.048672027290448346,
+    "precision_umbral": 0.5931780366056573,
+    "recall_con_precision_min": 0.3501103752759382,
+    "recall_umbral": 0.3147902869757174,
+    "roc_auc": 0.9304033889505026,
+    "umbral": 0.273049,
+    "version": "2"
+  }
+}

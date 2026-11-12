@@ -230,6 +230,7 @@ def run_ab(n_boot: int = N_BOOTSTRAP) -> dict[str, Any]:
         "promover_v2": promote,
         "motivo": reason,
         "_scores": {"v1": scores_v1, "v2": scores_v2, "labels": labels},
+        "_clusters": clusters,
     }
     return result
 
@@ -299,6 +300,56 @@ def log_ab_run(
             if path.exists():
                 mlflow.log_artifact(str(path))
         return run.info.run_id
+
+
+SENSITIVITY_SEEDS = (1, 2, 3, 4, 5)
+RESULT_SENSITIVITY_CSV = TABLES_DIR / "p2_ab_oct26_sensibilidad.csv"
+
+
+def sensitivity(
+    result: dict[str, Any], seeds: tuple[int, ...] = SENSITIVITY_SEEDS
+) -> pd.DataFrame:
+    """Repite el bootstrap con otras semillas. Solo es sensibilidad: la regla usa la semilla fija."""
+    scores = result["_scores"]
+    labels = scores["labels"]
+    rows = []
+    for seed in seeds:
+        october_clusters = result["_clusters"]
+        boot = paired_bootstrap(
+            labels,
+            scores["v1"],
+            scores["v2"],
+            october_clusters,
+            n_boot=result["bootstrap"]["remuestras"],
+            seed=seed,
+        )
+        rows.append(
+            {
+                "semilla": seed,
+                "delta_pr_auc": boot.delta_pr_auc,
+                "delta_pr_auc_ic_bajo": boot.pr_auc_ci[0],
+                "delta_pr_auc_ic_alto": boot.pr_auc_ci[1],
+                "delta_brier": boot.delta_brier,
+                "delta_brier_ic_bajo": boot.brier_ci[0],
+                "delta_brier_ic_alto": boot.brier_ci[1],
+                "remuestras_validas": boot.valid_resamples,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+@app.command("sensibilidad")
+def sensitivity_command(
+    n_boot: int = typer.Option(N_BOOTSTRAP, help="Remuestras bootstrap por semilla."),
+) -> None:
+    """Sensibilidad del IC a la semilla del bootstrap; no cambia la decision oficial."""
+    ensure_activity_experiment()
+    result = run_ab(n_boot=n_boot)
+    frame = sensitivity(result)
+    TABLES_DIR.mkdir(parents=True, exist_ok=True)
+    frame.to_csv(RESULT_SENSITIVITY_CSV, index=False)
+    logger.success("Sensibilidad escrita en {}", RESULT_SENSITIVITY_CSV.name)
+    logger.success("\n{}", frame.round(6).to_string(index=False))
 
 
 @app.callback()
