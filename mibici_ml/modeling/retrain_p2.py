@@ -205,6 +205,11 @@ def validate_registered_version(version: str, model: Any, example: pd.DataFrame)
         raise ValueError("La version registrada no reproduce el modelo entrenado.")
 
 
+@app.callback()
+def _main() -> None:
+    """Version 2 de P2 (challenger). Subcomando: ``train``."""
+
+
 @app.command("train")
 def train_command(
     register: Annotated[bool, typer.Option(help="Registrar la version en el Registry.")] = True,
