@@ -1,0 +1,11 @@
+2026-11-12 07:33:43.496 | INFO     | mibici_ml.config:<module>:15 - PROJ_ROOT path is: <repo>
+2026-11-12 07:34:58.954 | INFO     | mibici_ml.modeling.ab_p2:run_ab:212 - Decision: promover_v2=True (IC 95% de delta PR-AUC por encima de cero y Brier no peor.)
+2026-11-12 07:34:59.736 | SUCCESS  | __main__:run_command:356 - Figura: 01_drift_por_variable.png
+2026-11-12 07:34:59.736 | SUCCESS  | __main__:run_command:356 - Figura: 02_drift_vs_importancia.png
+2026-11-12 07:34:59.737 | SUCCESS  | __main__:run_command:356 - Figura: 03_v1_mensual.png
+2026-11-12 07:34:59.737 | SUCCESS  | __main__:run_command:356 - Figura: 04_calibracion_mensual.png
+2026-11-12 07:34:59.737 | SUCCESS  | __main__:run_command:356 - Figura: 05_volumen_mensual.png
+2026-11-12 07:34:59.737 | SUCCESS  | __main__:run_command:356 - Figura: 06_pr_curvas_oct26.png
+2026-11-12 07:34:59.737 | SUCCESS  | __main__:run_command:356 - Figura: 07_bootstrap_delta_pr_auc.png
+2026-11-12 07:34:59.737 | SUCCESS  | __main__:run_command:357 - Tablas escritas en <repo>/reports/tables
+EXIT=0

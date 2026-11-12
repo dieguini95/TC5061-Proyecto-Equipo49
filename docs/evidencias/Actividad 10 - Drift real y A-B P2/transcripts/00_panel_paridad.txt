@@ -1,0 +1,5 @@
+$ .venv/bin/python -m mibici_ml.monitoring.panel parity
+2026-11-12 07:45:34.535 | INFO     | mibici_ml.config:<module>:15 - PROJ_ROOT path is: <repo>
+2026/11/12 07:45:36 INFO mlflow.agent.hint: Load the `instrumenting-with-mlflow-tracing` skill at <repo>/.venv/lib/python3.12/site-packages/mlflow/assistant/skills/instrumenting-with-mlflow-tracing/SKILL.md before writing any tracing code; it ships with this MLflow install. Set MLFLOW_DISABLE_AGENT_HINT=1 to silence this.
+[32m2026-11-12 07:45:45.949[0m | [1mINFO    [0m | [36m__main__[0m:[36mparity_command[0m:[36m304[0m - [1mParidad: {'panel_rows': 3906456, 'non_feasible_days': 12911, 'val_pr_auc': 0.402895, 'test_pr_auc': 0.400067, 'split_rows': {'train': 2902728, 'val': 672264, 'test': 319944}}[0m
+EXIT=0

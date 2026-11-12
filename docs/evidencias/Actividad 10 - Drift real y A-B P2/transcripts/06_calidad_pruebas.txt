@@ -1,0 +1,36 @@
+$ git --no-pager log -1 --oneline
+d4286dd style(monitoring): restaura finales de linea CRLF del modulo
+
+$ .venv/bin/python -m pytest -q -p no:cacheprovider
+350 passed, 13 skipped, 44 warnings in 107.23s (0:01:47)
+(Los avisos son de MLflow, FastAPI y pandas; no son fallos.)
+
+Nota de estabilidad: en una corrida completa anterior de esta misma rama,
+tests/test_risk.py::test_evaluate_all_metrics_are_identical_across_runs_with_same_seed
+fallo una vez con diferencia de ~4e-7 relativa en val_pr_auc. La prueba compara
+con rtol=1e-12 y usa HistGradientBoosting/ExtraTrees con n_jobs=-1, cuyo
+resultado puede variar en el ultimo digito por el orden de las reducciones
+paralelas. Ningun archivo de risk.py ni de test_risk.py cambio en esta rama.
+La prueba falla de forma intermitente tambien en la rama (3 de 11 corridas
+aisladas); en origin/main no fallo en 13 corridas aisladas. Queda documentado
+como inestabilidad a corregir aparte (p. ej. tolerancia relativa de 1e-6).
+
+$ .venv/bin/ruff check .
+All checks passed!
+
+$ .venv/bin/ruff format --check (archivos tocados por esta rama)
+17 files already formatted
+Nota: ruff format reporta 5 archivos sin formatear que esta rama no toca
+(mibici_ml/api/errors.py, mibici_ml/modeling/cluster.py, mibici_ml/modeling/p3_model.py,
+mibici_ml/modeling/search_p3.py, mibici_ml/serving/export_pyfunc.py). Deuda previa, fuera de alcance.
+
+$ git -c core.whitespace=cr-at-eol diff --check origin/main
+sin problemas de espacios
+(Sin el ajuste cr-at-eol, git marca el \r de los archivos CRLF como espacio final.)
+
+$ bash scripts/run_security_checks.sh
+	No issues identified.
+	Total lines of code: 8628
+	Low: 19 | Medium: 0 | High: 0
+11 passed in 2.25s
+Chequeos completados sin fallos; código final 0.
