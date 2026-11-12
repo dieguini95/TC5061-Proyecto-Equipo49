@@ -206,6 +206,8 @@ mlartifacts/
 
 # Excepcion: tablas agregadas (sin datos a nivel usuario) usadas por el notebook de EDA
 !reports/tables/*.csv
+# Excepcion: catalogo publico de estaciones fijado con SHA-256 (fallback de dataset.py)
+!references/nomenclatura_2026_09.csv
 
 # Archivos locales de ejecucion P1
 /work/

@@ -31,12 +31,18 @@ from mibici_ml.config import (
     PROCESSED_DATA_DIR,
     PROJ_ROOT,
     RAW_DATA_DIR,
+    REFERENCES_DIR,
     START_MONTH,
     TRIPS_PROCESSED_DIR,
 )
 
 app = typer.Typer(add_completion=False)
 CLEANING_VERSION = "mibici-p1-v1"
+# Copia fijada del catálogo de estaciones (nomenclatura_2026_09.csv). La URL oficial
+# de ese archivo responde 404 desde nov 2026; sin esta copia la ingesta no reproduce
+# stations.parquet en otra máquina. Solo se usa si la descarga falla y el hash coincide.
+STATIONS_PINNED_PATH = REFERENCES_DIR / "nomenclatura_2026_09.csv"
+STATIONS_PINNED_SHA256 = "206e45fe633922b634d858142fa21e6fd9f4c421b6435c02980ef290cc2df90d"
 TRIP_COLUMNS = ["trip_id", "start_time", "end_time", "origin_id", "destination_id"]
 STATION_COLUMNS = ["station_id", "name", "lat", "lon", "capacity"]
 
@@ -287,7 +293,13 @@ def _obtain_raw(
     expected: str | None,
     source_dir: Path | None,
     refresh: bool,
+    fallback: tuple[Path, str] | None = None,
 ) -> str:
+    """Obtiene un CSV crudo: caché, copia local o descarga; ``fallback`` si la URL falla.
+
+    ``fallback`` es ``(ruta, sha256)`` de una copia fijada en el repositorio. Solo se usa
+    cuando la descarga responde con error HTTP (p. ej. 404) y el hash coincide.
+    """
     if target.is_file() and not refresh:
         return _check_hash(target, expected)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -299,7 +311,18 @@ def _obtain_raw(
             shutil.copyfile(candidate, temporary)
         else:
             logger.info("Descargando {}", target.name)
-            _download(session, url, temporary)
+            try:
+                _download(session, url, temporary)
+            except requests.HTTPError:
+                if fallback is None or refresh or not fallback[0].is_file():
+                    raise
+                pinned_path, pinned_sha256 = fallback
+                logger.warning(
+                    "La URL oficial de {} no respondió; se usa la copia fijada en references/.",
+                    target.name,
+                )
+                shutil.copyfile(pinned_path, temporary)
+                expected = expected or pinned_sha256
         actual = _check_hash(temporary, expected)
         temporary.replace(target)
         return actual
@@ -428,7 +451,13 @@ def ingest_dataset(
         station_raw = raw_dir / station_name
         station_expected = None if refresh else previous.get("stations", {}).get("raw_sha256")
         station_hash = _obtain_raw(
-            session, NOMENCLATURA_URL, station_raw, station_expected, source_dir, refresh
+            session,
+            NOMENCLATURA_URL,
+            station_raw,
+            station_expected,
+            source_dir,
+            refresh,
+            fallback=(STATIONS_PINNED_PATH, STATIONS_PINNED_SHA256),
         )
         original, encoding = read_source_csv(station_raw)
         stations, qa = clean_stations(original)

@@ -204,3 +204,67 @@ def test_ingestion_is_repeatable_and_manifest_contains_only_metadata(tmp_path, m
 def test_reject_invalid_month_range(start, end):
     with pytest.raises(ValueError):
         dataset._month_range(start, end)
+
+
+def _unreachable_portal(*_args, **_kwargs):
+    raise dataset.requests.HTTPError("404 Client Error: Not Found")
+
+
+def test_pinned_station_copy_matches_manifest_and_hash():
+    from mibici_ml.config import DATA_MANIFEST_PATH
+
+    manifest = json.loads(DATA_MANIFEST_PATH.read_text(encoding="utf-8"))
+    pinned = dataset.STATIONS_PINNED_PATH
+    assert pinned.is_file()
+    assert dataset.sha256_file(pinned) == dataset.STATIONS_PINNED_SHA256
+    assert manifest["stations"]["raw_sha256"] == dataset.STATIONS_PINNED_SHA256
+
+
+def test_station_fallback_is_used_only_when_the_official_url_fails(tmp_path, monkeypatch):
+    pinned = tmp_path / "pinned.csv"
+    pinned.write_bytes(b"id,capacidad\n1,10\n")
+    sha256 = dataset.sha256_file(pinned)
+    target = tmp_path / "raw" / "nomenclatura_2026_09.csv"
+    monkeypatch.setattr(dataset, "_download", _unreachable_portal)
+
+    actual = dataset._obtain_raw(
+        None,
+        "https://example.invalid/nomenclatura_2026_09.csv",
+        target,
+        None,
+        None,
+        False,
+        fallback=(pinned, sha256),
+    )
+
+    assert actual == sha256
+    assert target.read_bytes() == pinned.read_bytes()
+
+
+def test_station_fallback_with_different_hash_is_rejected(tmp_path, monkeypatch):
+    pinned = tmp_path / "pinned.csv"
+    pinned.write_bytes(b"id,capacidad\n1,10\n")
+    target = tmp_path / "raw" / "nomenclatura_2026_09.csv"
+    monkeypatch.setattr(dataset, "_download", _unreachable_portal)
+
+    with pytest.raises(ValueError, match="SHA-256 inesperado"):
+        dataset._obtain_raw(
+            None,
+            "https://example.invalid/nomenclatura_2026_09.csv",
+            target,
+            None,
+            None,
+            False,
+            fallback=(pinned, "0" * 64),
+        )
+    assert not target.exists()
+
+
+def test_http_error_without_fallback_is_still_raised(tmp_path, monkeypatch):
+    target = tmp_path / "raw" / "nomenclatura_2026_09.csv"
+    monkeypatch.setattr(dataset, "_download", _unreachable_portal)
+
+    with pytest.raises(dataset.requests.HTTPError):
+        dataset._obtain_raw(
+            None, "https://example.invalid/nomenclatura_2026_09.csv", target, None, None, False
+        )
