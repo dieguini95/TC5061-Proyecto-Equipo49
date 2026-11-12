@@ -1143,9 +1143,9 @@ El drift aparece en las mismas 8 variables de flujo en las tres corridas, inclui
 
 ### Versión 2 y comparación offline
 
-La versión 2 de P2 usa los mismos hiperparámetros que el champion (versión 1). Se entrena de octubre de 2025 a agosto de 2026 y su umbral se elige en septiembre de 2026. Se registra como versión 2 con alias `challenger`; el alias `champion` no cambia.
+La versión 2 de P2 usa los mismos hiperparámetros que el champion (versión 1). Se entrena de octubre de 2025 a agosto de 2026 y su umbral se elige en septiembre de 2026. Se registra como versión 2 con alias `challenger`. El 12 de noviembre de 2026, con la regla cumplida, el alias `champion` se movió a la versión 2 en el registro local; la versión 1 queda sin alias como respaldo. El bundle servido en `models/serving/p2` no se ha re-exportado y sigue siendo la versión 1.
 
-En octubre de 2026, la versión 2 obtiene PR-AUC de 0.3777, frente a 0.3748 de la versión 1 (ΔPR-AUC +0.0029, IC 95% [+0.0002, +0.0055], bootstrap pareado por estación-día). El Brier no mejora de forma significativa: su IC 95% incluye cero. La regla de decisión, fijada antes de ver el resultado, se cumple con un margen pequeño. La promoción queda como decisión del equipo.
+En octubre de 2026, la versión 2 obtiene PR-AUC de 0.3777, frente a 0.3748 de la versión 1 (ΔPR-AUC +0.0029, IC 95% [+0.0002, +0.0055], bootstrap pareado por estación-día). El Brier no mejora de forma significativa: su IC 95% incluye cero. La regla de decisión, fijada antes de ver el resultado, se cumple con un margen pequeño. La promoción la decidió Diego Sánchez con base en la regla fija; el equipo la revisa en el PR, y confirmar la mejora con noviembre de 2026 queda pendiente.
 
 ### Recomendación de Continuous Training
 

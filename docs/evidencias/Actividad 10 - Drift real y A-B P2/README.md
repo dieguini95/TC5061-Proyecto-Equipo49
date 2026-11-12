@@ -111,7 +111,7 @@ límite inferior mayor que cero y el Brier de la versión 2 no es peor que el de
 
 **Resultado de la regla:** se cumple (promover v2). El margen es mínimo: el efecto es menor a
 0.3 puntos de PR-AUC, el Brier no mejora de forma significativa y el recall al umbral operativo baja.
-El alias `champion` **no se movió**: la promoción es una decisión del equipo, separada del análisis.
+El alias `champion` **se movió a la versión 2** en el registro local el 12 de noviembre de 2026, después de cumplirse la regla fija. La versión 1 queda sin alias como respaldo y el bundle `models/serving/p2` no se re-exportó. La captura `capturas/11` muestra el registro antes de ese cambio.
 
 Resultados en `reports/tables/p2_ab_oct26_resultado.json`, `p2_ab_oct26_metricas.csv` y
 `p2_ab_oct26_sensibilidad.csv`. Registro MLflow: run `ab_test` en el experimento
