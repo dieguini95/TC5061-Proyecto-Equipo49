@@ -19,7 +19,7 @@ Ejecutar con el entorno principal:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 from pathlib import Path
 from typing import Any
@@ -76,6 +76,8 @@ class BootstrapResult:
     delta_brier: float
     brier_ci: tuple[float, float]
     valid_resamples: int
+    pr_deltas: np.ndarray = field(default=None, repr=False, compare=False)
+    brier_deltas: np.ndarray = field(default=None, repr=False, compare=False)
 
 
 def cluster_codes(station: pd.Series, day: pd.Series) -> np.ndarray:
@@ -156,6 +158,8 @@ def paired_bootstrap(
             float(np.percentile(brier_array, high_q)),
         ),
         valid_resamples=int(pr_array.size),
+        pr_deltas=pr_array,
+        brier_deltas=brier_array,
     )
 
 
@@ -231,6 +235,7 @@ def run_ab(n_boot: int = N_BOOTSTRAP) -> dict[str, Any]:
         "motivo": reason,
         "_scores": {"v1": scores_v1, "v2": scores_v2, "labels": labels},
         "_clusters": clusters,
+        "_bootstrap": boot,
     }
     return result
 
