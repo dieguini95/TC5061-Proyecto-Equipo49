@@ -44,9 +44,12 @@ pero los bytes procesados difieren. Las métricas sí coinciden, así que se doc
 
 ## Drift: R1, R2 y R3
 
-Resumen completo en `transcripts/01_drift_r1_r2_r3_resumen.txt`. Se usa el umbral por defecto de
-Evidently (Wasserstein normalizada para variables numéricas, Jensen-Shannon para categóricas) y el
-umbral de dataset de 0.5 de la fracción de columnas con drift.
+Resumen completo en `transcripts/01_drift_r1_r2_r3_resumen.txt`. Evidently usa Wasserstein normalizada
+en las variables continuas y Jensen-Shannon en las de pocos valores distintos (el reporte las marca
+como `cat`: `dia_semana`, `capacidad`, `riesgo_observado_h`, `riesgo_observado_previo_h`). El umbral de
+columna es 0.05 y se compara con esa **distancia**, no con un p-value. El umbral de dataset es 0.5 de
+la fracción de columnas con drift. El reporte también incluye el resumen de calidad de datos
+(`DataSummaryPreset`): cero valores faltantes por columna en las tres corridas. El resumen de R1 (`capturas/08`) tampoco muestra columnas constantes ni duplicadas.
 
 | Corrida | Columnas con drift | Share | Dataset drift |
 |---|---|---|---|
@@ -64,7 +67,7 @@ resultado indica que el cambio no es propio de octubre 2026: es un cambio de vol
 **1. El drift es de volumen, no de estación.** Las variables que se mueven son de flujo (llegadas,
 salidas y acumulados). Las variables de la estación (capacidad, hora, día y riesgo observado) casi
 no cambian. Los viajes limpios por mes pasaron de 419,839 en octubre 2025 a 635,341 en octubre 2026
-(+51%), y la llegada media por hora-estación de 0.93 a 1.52 (`figuras/05_volumen_mensual.png`).
+(+51%), y la llegada media por hora-estación de 0.93 a 1.52 (`figuras/05_volumen_mensual.png`). La tendencia es creciente desde julio de 2026: 388,175 viajes en julio, 393,437 en agosto, 489,127 en septiembre y 635,341 en octubre. El cambio no es un salto aislado de octubre, sino una aceleración que ya era visible en el segundo semestre.
 
 **2. El drift no es donde está el modelo.** Por importancia por permutación en validación, las
 variables más usadas son `riesgo_observado_h` (0.347) y `hora` (0.175). Ninguna de las dos muestra
