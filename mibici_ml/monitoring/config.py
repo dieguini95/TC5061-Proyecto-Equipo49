@@ -47,7 +47,9 @@ def load_p2_feature_names(metadata_path: Path = P2_METADATA_PATH) -> tuple[str, 
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise MonitoringError(f"Could not read P2 model metadata: {metadata_path.name}.") from error
+        raise MonitoringError(
+            f"Could not read P2 model metadata: {metadata_path.name}."
+        ) from error
     features = metadata.get("feature_names")
     if metadata.get("question") != "p2" or not isinstance(features, list):
         raise MonitoringError("P2 model metadata must contain a feature_names list.")
