@@ -95,9 +95,7 @@ def write_outputs(
             "summary": summary.as_dict(),
             "evidently_snapshot": snapshot.dict(),
         }
-        (stage / OUTPUT_NAMES[1]).write_text(
-            _encode_json(report_payload), encoding="utf-8"
-        )
+        (stage / OUTPUT_NAMES[1]).write_text(_encode_json(report_payload), encoding="utf-8")
         with (stage / OUTPUT_NAMES[2]).open("w", encoding="utf-8", newline="") as stream:
             writer = csv.DictWriter(stream, fieldnames=CSV_FIELDS)
             writer.writeheader()
@@ -117,9 +115,7 @@ def write_outputs(
                         "drift_detected": column.drift_detected,
                     }
                 )
-        (stage / OUTPUT_NAMES[3]).write_text(
-            _encode_json(metadata.as_dict()), encoding="utf-8"
-        )
+        (stage / OUTPUT_NAMES[3]).write_text(_encode_json(metadata.as_dict()), encoding="utf-8")
 
         for staged_file, final_file in zip(
             (stage / name for name in OUTPUT_NAMES),

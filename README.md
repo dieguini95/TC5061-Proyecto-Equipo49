@@ -1121,7 +1121,37 @@ python3.12 -m venv .venv-monitoring
 
 La implementación, los controles de privacidad, los comandos y las evidencias están documentados en [docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md](docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md).
 
-La ejecución documentada valida la infraestructura con fixtures sintéticos. No se atribuyen esos resultados a datos reales de MiBici.
+Las pruebas automatizadas usan fixtures sintéticos. Las corridas con datos reales de MiBici (octubre 2026) se resumen en las secciones siguientes.
+
+### Corridas con datos reales (octubre 2026)
+
+El panel de monitoreo se construye con `python -m mibici_ml.monitoring.panel build --month 2026_10`. Ese comando ingiere los viajes de octubre de 2026 en un proceso aislado, reconstruye el panel de P2 desde octubre de 2025 (los rezagos cruzan meses) y escribe `references/monitoring_manifest_p2.json`. Antes de usarlo, el panel debe reproducir el run del champion: 3,906,456 filas, 12,911 días no factibles y PR-AUC de validación y prueba de 0.4029 y 0.4001.
+
+Tres corridas de Evidently (150,000 filas por ventana, semilla 42):
+
+| Corrida | Referencia | Ventana actual | Columnas con drift |
+|---|---|---|---|
+| R1 (principal) | 2025-10-01 a 2026-06-30 | 2026-10-01 a 2026-10-31 (`out_of_time`) | 8 de 14 |
+| R2 (tendencia) | 2025-10-01 a 2026-06-30 | 2026-09-01 a 2026-09-30 (`historical_test`) | 8 de 14 |
+| R3 (control estacional) | 2025-10-01 a 2025-10-31 | 2026-10-01 a 2026-10-31 (`out_of_time`) | 8 de 14 |
+
+```bash
+.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --input data/interim/monitoring/p2_monitoring_input.parquet --data-version <data_version> --current-start 2026-10-01 --current-end 2026-10-31 --current-role out_of_time --run-name r1
+```
+
+El drift aparece en las mismas 8 variables de flujo en las tres corridas, incluida la de control. Por eso refleja el crecimiento del volumen de viajes entre años y no un patrón propio de octubre. Las variables más importantes por permutación (`riesgo_observado_h` y `hora`) no muestran drift. `flujo_acumulado_sobre_c` y `llegadas_2h` sí lo muestran y tienen importancia alta.
+
+### Versión 2 y comparación offline
+
+La versión 2 de P2 usa los mismos hiperparámetros que el champion (versión 1). Se entrena de octubre de 2025 a agosto de 2026 y su umbral se elige en septiembre de 2026. Se registra como versión 2 con alias `challenger`. El 12 de noviembre de 2026, con la regla cumplida, el alias `champion` se movió a la versión 2 en el registro local; la versión 1 queda sin alias como respaldo. El bundle servido en `models/serving/p2` no se ha re-exportado y sigue siendo la versión 1.
+
+En octubre de 2026, la versión 2 obtiene PR-AUC de 0.3777, frente a 0.3748 de la versión 1 (ΔPR-AUC +0.0029, IC 95% [+0.0002, +0.0055], bootstrap pareado por estación-día). El Brier no mejora de forma significativa: su IC 95% incluye cero. La regla de decisión, fijada antes de ver el resultado, se cumple con un margen pequeño. La promoción la decidió Diego Sánchez con base en la regla fija; el equipo la revisa en el PR, y confirmar la mejora con noviembre de 2026 queda pendiente.
+
+### Recomendación de Continuous Training
+
+Reentrenar cada mes con los meses más recientes con etiqueta completa, evaluar el candidato en el último mes completo y promover solo si la regla fija del A/B se cumple. Los disparadores propuestos son: PR-AUC mensual por debajo de 0.95 veces la referencia durante dos meses, drift en variables con importancia ≥ 0.01, volumen mensual más de 25% por encima del entrenamiento, y calibración con diferencia mayor a 20%. Con octubre de 2026 se activan los disparadores de drift en variables importantes y de volumen.
+
+Resultados completos, limitaciones y reproducción: [docs/evidencias/Actividad%2010%20-%20Drift%20real%20y%20A-B%20P2/README.md](docs/evidencias/Actividad%2010%20-%20Drift%20real%20y%20A-B%20P2/README.md).
 
 ## Licencia
 

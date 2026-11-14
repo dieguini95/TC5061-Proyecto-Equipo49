@@ -1,0 +1,7 @@
+2026-11-12 07:23:01.663 | INFO     | mibici_ml.config:<module>:15 - PROJ_ROOT path is: <repo>
+2026-11-12 07:23:38.831 | INFO     | __main__:fit_challenger:102 - Version 2 ajustada: umbral 0.273049 en 2026-09-01_to_2026-09-30
+<repo>/.venv/lib/python3.12/site-packages/sklearn/utils/validation.py:2823: UserWarning: X has feature names, but HistGradientBoostingClassifier was fitted without feature names
+  warnings.warn(
+2026-11-12 07:23:43.783 | SUCCESS  | __main__:register_challenger:193 - Version 2 registrada desde el run 2a0fa001974c4a6180d29033a695842e
+2026-11-12 07:23:44.032 | SUCCESS  | __main__:train_command:237 - Resumen de la version 2 en p2_v2_entrenamiento.json
+EXIT=0

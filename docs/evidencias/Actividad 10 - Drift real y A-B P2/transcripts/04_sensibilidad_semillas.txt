@@ -1,0 +1,11 @@
+2026-11-12 07:26:00.500 | INFO     | mibici_ml.config:<module>:15 - PROJ_ROOT path is: <repo>
+2026-11-12 07:27:09.903 | INFO     | __main__:run_ab:208 - Decision: promover_v2=True (IC 95% de delta PR-AUC por encima de cero y Brier no peor.)
+2026-11-12 07:32:14.063 | SUCCESS  | __main__:sensitivity_command:351 - Sensibilidad escrita en p2_ab_oct26_sensibilidad.csv
+2026-11-12 07:32:14.065 | SUCCESS  | __main__:sensitivity_command:352 -
+ semilla  delta_pr_auc  delta_pr_auc_ic_bajo  delta_pr_auc_ic_alto  delta_brier  delta_brier_ic_bajo  delta_brier_ic_alto  remuestras_validas
+       1       0.00292              0.000245              0.005446    -0.000013            -0.000030             0.000005                1000
+       2       0.00292              0.000206              0.005680    -0.000013            -0.000031             0.000005                1000
+       3       0.00292              0.000414              0.005658    -0.000013            -0.000031             0.000003                1000
+       4       0.00292              0.000472              0.005433    -0.000013            -0.000030             0.000004                1000
+       5       0.00292              0.000159              0.005347    -0.000013            -0.000031             0.000005                1000
+EXIT=0

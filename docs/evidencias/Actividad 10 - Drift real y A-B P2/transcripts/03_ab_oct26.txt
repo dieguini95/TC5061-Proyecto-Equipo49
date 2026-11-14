@@ -1,0 +1,5 @@
+2026-11-12 07:24:28.264 | INFO     | mibici_ml.config:<module>:15 - PROJ_ROOT path is: <repo>
+2026-11-12 07:25:36.734 | INFO     | __main__:run_ab:208 - Decision: promover_v2=True (IC 95% de delta PR-AUC por encima de cero y Brier no peor.)
+2026-11-12 07:25:36.983 | SUCCESS  | __main__:run_command:318 - A/B escrito en p2_ab_oct26_resultado.json y p2_ab_oct26_metricas.csv; run ec6340450bcd41568cf254f01571555e
+2026-11-12 07:25:36.983 | SUCCESS  | __main__:run_command:319 - PR-AUC v1 0.3748 v2 0.3777 delta +0.0029 IC95 [+0.0002, +0.0055] promover_v2=True
+EXIT=0

@@ -49,8 +49,10 @@ def _sample_window(
 ) -> pd.DataFrame:
     if len(frame) > sample_limit:
         frame = frame.sample(n=sample_limit, random_state=random_seed)
-    return frame.sort_values(timestamp_column, kind="mergesort").loc[:, list(features)].reset_index(
-        drop=True
+    return (
+        frame.sort_values(timestamp_column, kind="mergesort")
+        .loc[:, list(features)]
+        .reset_index(drop=True)
     )
 
 
@@ -65,8 +67,8 @@ def prepare_windows(
     """Validate a P2 panel, split inclusive dates, and return feature-only samples."""
     if reference.role != "reference":
         raise MonitoringError("Reference window role must be reference.")
-    if current.role != "historical_test":
-        raise MonitoringError("Current window role must be historical_test.")
+    if current.role not in {"historical_test", "out_of_time"}:
+        raise MonitoringError("Current window role must be historical_test or out_of_time.")
     reference_start, reference_end = _window_bounds(reference)
     current_start, current_end = _window_bounds(current)
     if current_start < reference_end and reference_start < current_end:
@@ -135,7 +137,7 @@ def prepare_windows(
     if reference_rows.empty:
         raise MonitoringError("Reference window contains no rows.")
     if current_rows.empty:
-        raise MonitoringError("Historical_test window contains no rows.")
+        raise MonitoringError(f"{current.role} window contains no rows.")
 
     reference_features = _sample_window(
         reference_rows,

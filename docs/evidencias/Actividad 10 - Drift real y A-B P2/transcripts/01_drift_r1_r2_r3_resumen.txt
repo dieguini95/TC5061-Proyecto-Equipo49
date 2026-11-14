@@ -1,0 +1,19 @@
+# Corridas de drift con Evidently 0.7.23 (generado desde metadata.json y drift_columns.csv)
+
+## r1: referencia 2025-10-01..2026-06-30 vs out_of_time 2026-10-01..2026-10-31
+- filas analizadas: referencia 150,000, actual 150,000 (muestreo a 150,000, semilla 42)
+- data_version: 220569d9969f3ce2...
+- columnas con drift: 8/14 (flujo_acumulado, flujo_acumulado_sobre_c, llegadas_1h, salidas_1h, llegadas_2h, salidas_2h, salidas_misma_hora_ayer, tendencia_flujo_3h)
+- limitacion: The current window is an out-of-time period after training, reviewed offline; it is not production telemetry.
+
+## r2: referencia 2025-10-01..2026-06-30 vs historical_test 2026-09-01..2026-09-30
+- filas analizadas: referencia 150,000, actual 150,000 (muestreo a 150,000, semilla 42)
+- data_version: 220569d9969f3ce2...
+- columnas con drift: 8/14 (flujo_acumulado, flujo_acumulado_sobre_c, llegadas_1h, salidas_1h, llegadas_2h, salidas_2h, salidas_misma_hora_ayer, tendencia_flujo_3h)
+- limitacion: The current window is a retrospective historical_test, not production telemetry.
+
+## r3: referencia 2025-10-01..2025-10-31 vs out_of_time 2026-10-01..2026-10-31
+- filas analizadas: referencia 150,000, actual 150,000 (muestreo a 150,000, semilla 42)
+- data_version: 220569d9969f3ce2...
+- columnas con drift: 8/14 (flujo_acumulado, flujo_acumulado_sobre_c, llegadas_1h, salidas_1h, llegadas_2h, salidas_2h, salidas_misma_hora_ayer, tendencia_flujo_3h)
+- limitacion: The current window is an out-of-time period after training, reviewed offline; it is not production telemetry.

@@ -1,0 +1,58 @@
+{
+  "base_data_version": "99e366a046567471c42c9cf46e609f85332c591652baeaa45bbe431ac0532781",
+  "data_version": "220569d9969f3ce27ef1858ac77d303f6f7918734b852d6967f34043bf1697cc",
+  "extra_trips": [
+    {
+      "clean_rows": 635341,
+      "encoding": "utf-8-sig",
+      "month": "2026_10",
+      "origin_stations": 470,
+      "processed_path": "trips/2026_10.parquet",
+      "processed_sha256": "7c2fa614e862798019cf170e6a991a0165b2091027b585fc748c14f998106307",
+      "qa": {
+        "duplicate_trip_ids_retained": 0,
+        "exact_duplicates_removed": 0,
+        "invalid_station_ids_removed": 0,
+        "invalid_timestamps_removed": 0,
+        "nonpositive_duration_removed": 191,
+        "over_180_minutes_retained": 50,
+        "rows_removed_total": 191,
+        "same_station_retained": 46585,
+        "starts_outside_source_month_removed": 0,
+        "under_1_minute_retained": 27580
+      },
+      "raw_bytes": 55222199,
+      "raw_path": "datos_abiertos_2026_10.csv",
+      "raw_rows": 635532,
+      "raw_sha256": "0cdfb05299e6db658ac9cc7723494a9704b0749e3671c29c8566826ea889b900",
+      "source_url": "https://mibici.net/site/assets/files/133188/datos_abiertos_2026_10.csv",
+      "start_time_max": "2026-10-31T23:59:57",
+      "start_time_min": "2026-10-01T00:00:05"
+    }
+  ],
+  "limitations": [
+    "El catalogo de estaciones es el de septiembre 2026; se usa para capacidad.",
+    "La etiqueta es un proxy de inventario inferido de viajes, no inventario observado."
+  ],
+  "months": [
+    "2025_10",
+    "2025_11",
+    "2025_12",
+    "2026_01",
+    "2026_02",
+    "2026_03",
+    "2026_04",
+    "2026_05",
+    "2026_06",
+    "2026_07",
+    "2026_08",
+    "2026_09",
+    "2026_10"
+  ],
+  "purpose": "Panel P2 para monitoreo de drift: entrenamiento mas octubre 2026.",
+  "schema_version": 1,
+  "stations": {
+    "processed_sha256": "d58c6e3e729ef976a20771d57c6fb5e2aaf0e24bc6f19eab4f1fea2264c52b51",
+    "raw_sha256": "206e45fe633922b634d858142fa21e6fd9f4c421b6435c02980ef290cc2df90d"
+  }
+}

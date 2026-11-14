@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -29,6 +30,20 @@ from mibici_ml.monitoring.drift import SUPPORTED_EVIDENTLY_VERSION, run_drift_re
 from mibici_ml.monitoring.errors import MonitoringError
 from mibici_ml.monitoring.outputs import write_outputs
 from mibici_ml.monitoring.schemas import DriftConfig, ReportMetadata, WindowDefinition
+
+CURRENT_ROLES = ("historical_test", "out_of_time")
+RUN_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}")
+
+
+def _run_output_dir(run_name: str | None) -> Path:
+    """Carpeta de salida: ``reports/drift/p2`` o una subcarpeta con nombre validado."""
+    if run_name is None:
+        return DEFAULT_OUTPUT_DIR
+    if not RUN_NAME_PATTERN.fullmatch(run_name):
+        raise MonitoringError(
+            "--run-name debe usar minusculas, digitos, '_' o '-' (maximo 32 caracteres)."
+        )
+    return DEFAULT_OUTPUT_DIR / run_name
 
 
 def _parse_feature_threshold(value: str) -> tuple[str, float]:
@@ -109,9 +124,31 @@ def _parser() -> argparse.ArgumentParser:
         help="Per-feature threshold override; may be supplied more than once.",
     )
     parser.add_argument(
+        "--reference-start", default=REFERENCE_START, help="Inicio de referencia (YYYY-MM-DD)."
+    )
+    parser.add_argument(
+        "--reference-end", default=REFERENCE_END, help="Fin de referencia (YYYY-MM-DD, incluido)."
+    )
+    parser.add_argument(
+        "--current-start", default=CURRENT_START, help="Inicio de la ventana actual (YYYY-MM-DD)."
+    )
+    parser.add_argument(
+        "--current-end", default=CURRENT_END, help="Fin de la ventana actual (YYYY-MM-DD)."
+    )
+    parser.add_argument(
+        "--current-role",
+        choices=CURRENT_ROLES,
+        default=CURRENT_ROLE,
+        help="historical_test (prueba abierta de septiembre) o out_of_time (octubre).",
+    )
+    parser.add_argument(
+        "--run-name",
+        help="Subcarpeta bajo reports/drift/p2/ para esta corrida (p. ej. r1).",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="Replace existing reports under reports/drift/p2/.",
+        help="Replace existing reports in the selected output folder.",
     )
     return parser
 
@@ -125,18 +162,19 @@ def main(argv: list[str] | None = None) -> int:
             raise MonitoringError("A feature threshold was supplied more than once.")
         reference = WindowDefinition(
             name="reference",
-            start=REFERENCE_START,
-            end=REFERENCE_END,
+            start=args.reference_start,
+            end=args.reference_end,
             role="reference",
             expected_data_version=args.data_version,
         )
         current = WindowDefinition(
             name="current",
-            start=CURRENT_START,
-            end=CURRENT_END,
-            role=CURRENT_ROLE,
+            start=args.current_start,
+            end=args.current_end,
+            role=args.current_role,
             expected_data_version=args.data_version,
         )
+        output_dir = _run_output_dir(args.run_name)
         config = DriftConfig(
             feature_names=feature_names,
             excluded_columns=EXCLUDED_COLUMNS,
@@ -145,7 +183,8 @@ def main(argv: list[str] | None = None) -> int:
             per_column_thresholds=thresholds,
             sample_limit=SAMPLE_LIMIT,
             random_seed=RANDOM_SEED,
-            output_directory=str(DEFAULT_OUTPUT_DIR),
+            output_directory=str(output_dir),
+            report_tags=("p2", "offline", current.role),
         )
         prepared = prepare_windows(
             _read_panel(args.input),
@@ -179,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             snapshot,
             summary,
             metadata,
-            DEFAULT_OUTPUT_DIR,
+            output_dir,
             overwrite=args.overwrite,
         )
     except MonitoringError as error:
