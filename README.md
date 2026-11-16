@@ -4,7 +4,11 @@ Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**: propuesta y ba
 MLflow Project y tracking avanzado (Etapa 2).
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
-> **Estado (8 de noviembre de 2026, Actividad 8):** `main` incluye la API REST en contenedor (FastAPI) que sirve
+> **Estado (15 de noviembre de 2026, Actividad 10):** se evaluó el drift de P2 y se compararon dos versiones
+> con datos de octubre de 2026. El Registry identifica a v2 como `champion` y la API sirve el bundle v1.
+> Ver [Monitoreo offline de drift P2](#monitoreo-offline-de-drift-p2-actividad-10).
+>
+> **Estado previo (8 de noviembre de 2026, Actividad 8):** `main` incluye la API REST en contenedor (FastAPI) que sirve
 > P3 desde el Model Registry y P2 en `/v1/p2`, con `Containerfile` verificado en Docker y Podman. El modelo exportado
 > está versionado en `models/serving/`, así que la imagen se construye desde un clon limpio. Ver
 > [Servicio de inferencia en contenedor](#servicio-de-inferencia-en-contenedor-actividad-8).
@@ -621,8 +625,14 @@ Pull requests del proyecto:
 | [#12](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/12) | `feat/deepchecks-data-validation` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
 | [#13](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/13) | `feat/p1-quality-actividad7` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
 | [#14](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/14) | `docs/actividad7-cierre` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado), DaniRuan (Daniel Ruán) |
+| [#15](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/15) | `feat/serving-base-p2-api` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
+| [#16](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/16) | `feat/api-p3-serving` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
+| [#17](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/17) | `feat/podman-actividad8` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
+| [#18](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/18) | `fix/serving-bundle-versionado` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
+| [#19](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/19) | `feat/actividad10-monitoring-drift-p2` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
+| [#20](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/20) | `feat/actividad10-drift-real-ab-p2` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
 
-Los trece PR de las Etapas 1, 2 y 3 están fusionados en `main`. El PR #14 (cierre de la Actividad 7) está abierto para revisión. Cada integrante abrió al menos uno y revisó al menos uno de otro integrante.
+Los PR #1 a #20 están fusionados en `main`. El PR #14 cerró la Actividad 7. Los PR #19 y #20 incorporaron el monitoreo y la comparación de modelos de la Actividad 10.
 
 Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
 Diego Sánchez (P2 y cierre del repositorio).
@@ -668,6 +678,7 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 | 13 | Etapa 2: MLflow Project y Model Registry | Hecho: entry points `ingest`, `train`, `search_p1`, `search_p2` y `search_p3`; champion de P1, P2 y P3 registrados |
 | 14 | Actividad 7 (Etapa 3): pruebas PyTest, DeepChecks y chequeos de seguridad | Hecho: capturas de P1 incorporadas en el PR #14 (ver [Actividad 7](#actividad-7-pruebas-y-chequeos)) |
 | 15 | Actividad 8 (Etapa 4): API REST en contenedor Podman/Docker | Hecho: PR #15, #16 y #17 (ver [Actividad 8](#servicio-de-inferencia-en-contenedor-actividad-8)) |
+| 16 | Actividad 10: monitoreo de drift y A/B offline de P2 | Resultados de octubre y decisión de promoción en los PR #19 y #20 (ver [Actividad 10](#monitoreo-offline-de-drift-p2-actividad-10)) |
 
 Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
 se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
@@ -1110,16 +1121,25 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 
 ## Monitoreo offline de drift P2 (Actividad 10)
 
-El repositorio incorpora un pipeline reproducible de monitoreo offline para las 14 variables de entrada de P2 v2. La implementación valida el contrato del panel, separa la ventana de referencia (`2025-10-01` a `2026-06-30`) y la ventana histórica de prueba (`2026-09-01` a `2026-09-30`), ejecuta Evidently y genera reportes agregados HTML, JSON, CSV y metadata bajo `reports/drift/`. El proceso no modifica el modelo, MLflow ni el Model Registry.
+Evidently compara las 14 variables de entrada de P2 con su distribución de entrenamiento (octubre de 2025 a junio de 2026). Octubre de 2026 es la ventana principal (R1), septiembre muestra la evolución (R2) y la comparación entre octubre de 2025 y octubre de 2026 controla el mes del calendario (R3).
+
+### Cómo reproducir el monitoreo y el A/B de P2
+
+Desde la raíz del repositorio, usar Bash, GNU Make y el [entorno principal de Python 3.12](#cómo-reproducir-el-entorno). La construcción del panel requiere los 12 meses de la ingesta (`python -m mibici_ml.dataset`), sus Parquet en `data/processed/` y la versión 1 de `mibici-equipo49-p2-riesgo`. Si el Registry está en otro servidor, configurar `MLFLOW_TRACKING_URI`. Los artefactos también deben poder leerse desde la ruta registrada o desde el directorio local `mlruns/`.
 
 ```bash
-python3.12 -m venv .venv-monitoring
-.venv-monitoring/bin/python -m pip install -r requirements-monitoring.txt
-.venv-monitoring/bin/python -m pytest -q tests/monitoring
-.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --help
+source .venv/bin/activate
+make monitoring-env     # Instala Evidently en .venv-monitoring y comprueba las dependencias.
+make monitoring-panel   # Incorpora octubre de 2026 y verifica la paridad con v1.
+make monitoring-drift   # Genera R1, R2 y R3 con la versión de datos del manifiesto.
+make ab-p2              # Evalúa v1 y el modelo con alias challenger sobre el mismo octubre.
 ```
 
-La implementación, los controles de privacidad, los comandos y las evidencias están documentados en [docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md](docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md).
+Para `ab-p2`, el Registry debe contener el candidato de la comparación con alias `challenger`. Si falta, después de construir el panel se puede entrenar y registrar desde el entorno principal con `python -m mibici_ml.modeling.retrain_p2 train`. El A/B escribe `p2_ab_oct26_metricas.csv` y `p2_ab_oct26_resultado.json` en `reports/tables/` y registra una corrida en `mibici-equipo49-actividad10`. La promoción de `champion` es una operación aparte.
+
+Los reportes quedan en `reports/drift/p2/r1/`, `r2/` y `r3/`. Cada carpeta contiene el informe de Evidently (HTML y JSON), el CSV por variable y los metadatos con las ventanas, el commit y la versión de los datos. Para regenerar reportes existentes se usa `make monitoring-drift MONITORING_OVERWRITE=1`.
+
+El [README de monitoreo](docs/evidencias/Actividad%2010%20-%20Drift%20P2/README.md) describe el contrato de entrada y los controles de privacidad.
 
 Las pruebas automatizadas usan fixtures sintéticos. Las corridas con datos reales de MiBici (octubre 2026) se resumen en las secciones siguientes.
 
@@ -1134,10 +1154,6 @@ Tres corridas de Evidently (150,000 filas por ventana, semilla 42):
 | R1 (principal) | 2025-10-01 a 2026-06-30 | 2026-10-01 a 2026-10-31 (`out_of_time`) | 8 de 14 |
 | R2 (tendencia) | 2025-10-01 a 2026-06-30 | 2026-09-01 a 2026-09-30 (`historical_test`) | 8 de 14 |
 | R3 (control estacional) | 2025-10-01 a 2025-10-31 | 2026-10-01 a 2026-10-31 (`out_of_time`) | 8 de 14 |
-
-```bash
-.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --input data/interim/monitoring/p2_monitoring_input.parquet --data-version <data_version> --current-start 2026-10-01 --current-end 2026-10-31 --current-role out_of_time --run-name r1
-```
 
 El drift aparece en las mismas 8 variables de flujo en las tres corridas, incluida la de control. Por eso refleja el crecimiento del volumen de viajes entre años y no un patrón propio de octubre. Las variables más importantes por permutación (`riesgo_observado_h` y `hora`) no muestran drift. `flujo_acumulado_sobre_c` y `llegadas_2h` sí lo muestran y tienen importancia alta.
 

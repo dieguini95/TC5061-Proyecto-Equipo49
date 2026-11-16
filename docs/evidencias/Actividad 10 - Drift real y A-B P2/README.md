@@ -158,18 +158,21 @@ correr el A/B en noviembre con la versión 2 antes de decidir la promoción.
 
 ## Cómo reproducir
 
+Ejecutar desde la raíz con el entorno principal activo y la versión 1 disponible en MLflow.
+La [guía de ejecución de P2](../../../README.md#cómo-reproducir-el-monitoreo-y-el-ab-de-p2)
+detalla los prerrequisitos del panel y del A/B.
+
 ```bash
-# 1. Panel de monitoreo (ingesta aislada de octubre 2026 y compuerta de paridad)
-.venv/bin/python -m mibici_ml.monitoring.panel build --month 2026_10
+# 1. Entorno de Evidently y panel de octubre con verificación de paridad
+make monitoring-env
+make monitoring-panel
 
-# 2. Corridas de drift (entorno aislado con Evidently)
-.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --input data/interim/monitoring/p2_monitoring_input.parquet --data-version <data_version> --run-name r2
-.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --input data/interim/monitoring/p2_monitoring_input.parquet --data-version <data_version> --current-start 2026-10-01 --current-end 2026-10-31 --current-role out_of_time --run-name r1
-.venv-monitoring/bin/python -m mibici_ml.monitoring.cli --input data/interim/monitoring/p2_monitoring_input.parquet --data-version <data_version> --reference-start 2025-10-01 --reference-end 2025-10-31 --current-start 2026-10-01 --current-end 2026-10-31 --current-role out_of_time --run-name r3
+# 2. Comparaciones R1, R2 y R3 con la versión del manifiesto
+make monitoring-drift
 
-# 3. Challenger (versión 2) y A/B
-.venv/bin/python -m mibici_ml.modeling.retrain_p2 train
-.venv/bin/python -m mibici_ml.modeling.ab_p2 run
+# 3. A/B con el challenger registrado. Para crear el candidato si falta:
+# python -m mibici_ml.modeling.retrain_p2 train
+make ab-p2
 .venv/bin/python -m mibici_ml.modeling.ab_p2 sensibilidad
 
 # 4. Interpretación (tablas y figuras de esta carpeta)
