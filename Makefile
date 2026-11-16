@@ -7,6 +7,17 @@ PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
 QUALITY_PYTHON = .venv-quality/bin/python
 SERVING_PYTHON ?= $(PYTHON_INTERPRETER)
+MONITORING_ENV ?= .venv-monitoring
+ifeq ($(OS),Windows_NT)
+MONITORING_PYTHON ?= $(MONITORING_ENV)/Scripts/python.exe
+else
+MONITORING_PYTHON ?= $(MONITORING_ENV)/bin/python
+endif
+MONITORING_INPUT ?= data/interim/monitoring/p2_monitoring_input.parquet
+MONITORING_MANIFEST ?= references/monitoring_manifest_p2.json
+P2_DRIFT = "$(MONITORING_PYTHON)" -m mibici_ml.monitoring.cli --input "$(MONITORING_INPUT)" \
+	--data-version "$$version" $(if $(filter 1,$(MONITORING_OVERWRITE)),--overwrite)
+P2_OCTOBER = --current-start 2026-10-01 --current-end 2026-10-31 --current-role out_of_time
 QUESTION ?= p2
 ENGINE ?= docker
 PORT ?= 8000
@@ -111,6 +122,32 @@ serving-run:
 serving-test:
 	$(SERVING_PYTHON) -m pytest -q tests/api tests/test_serving_contract.py
 
+## Crea el entorno aislado de Evidently e instala sus dependencias fijadas
+.PHONY: monitoring-env
+monitoring-env:
+	"$(PYTHON_INTERPRETER)" -m venv "$(MONITORING_ENV)"
+	"$(MONITORING_PYTHON)" -m pip install -r requirements-monitoring.txt
+	"$(MONITORING_PYTHON)" -m pip check
+
+## Construye el panel P2 y comprueba su paridad con la versión 1 del Registry
+.PHONY: monitoring-panel
+monitoring-panel:
+	"$(PYTHON_INTERPRETER)" -m mibici_ml.monitoring.panel build
+
+## Genera las tres comparaciones de drift de P2 con la versión del manifiesto
+.PHONY: monitoring-drift
+monitoring-drift:
+	@version=$$("$(MONITORING_PYTHON)" -c "import json, sys; from pathlib import Path; sys.stdout.write(json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))['data_version'])" "$(MONITORING_MANIFEST)") && \
+	{ test -n "$$version" || { echo 'El manifiesto de monitoreo tiene data_version vacía.' >&2; exit 1; }; } && \
+	$(P2_DRIFT) --run-name r1 $(P2_OCTOBER) && \
+	$(P2_DRIFT) --run-name r2 && \
+	$(P2_DRIFT) --run-name r3 --reference-start 2025-10-01 --reference-end 2025-10-31 $(P2_OCTOBER)
+
+## Compara la versión 1 y el challenger en octubre y registra el A/B en MLflow
+.PHONY: ab-p2
+ab-p2:
+	"$(PYTHON_INTERPRETER)" -m mibici_ml.modeling.ab_p2 run
+
 
 ## Set up Python interpreter environment
 .PHONY: create_environment
@@ -140,8 +177,8 @@ data: requirements
 
 define PRINT_HELP_PYSCRIPT
 import re, sys; \
-lines = '\n'.join([line for line in sys.stdin]); \
-matches = re.findall(r'\n## (.*)\n[\s\S]+?\n([a-zA-Z_-]+):', lines); \
+lines = sys.stdin.read(); \
+matches = re.findall(r'^## (.+)\n(?:\.PHONY:[^\n]*\n)?([a-zA-Z0-9_-]+):', lines, re.MULTILINE); \
 print('Available rules:\n'); \
 print('\n'.join(['{:25}{}'.format(*reversed(match)) for match in matches]))
 endef
