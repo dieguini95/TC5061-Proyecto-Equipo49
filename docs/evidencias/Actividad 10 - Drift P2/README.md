@@ -36,6 +36,13 @@ Se excluyen del cálculo de drift y de las salidas los identificadores y campos 
 
 Cada ventana analiza como máximo 150000 filas; cuando supera ese límite, el muestreo determinista usa la semilla 42. El metadata registra las ventanas, conteos, versión de datos, semilla y revisión Git. La consulta de la revisión Git tiene un timeout de 10 segundos; los errores se presentan de forma sanitizada.
 
+### Cómo reproducir
+
+Desde la raíz, `make monitoring-env` instala Evidently y `make monitoring-panel` prepara el panel de octubre.
+`make monitoring-drift` genera las tres comparaciones R1, R2 y R3. Para contrastar los dos modelos en el
+mismo periodo se usa `make ab-p2`. Los requisitos de datos, los alias del Registry y las rutas de salida
+están en la [guía de ejecución de P2](../../../README.md#cómo-reproducir-el-monitoreo-y-el-ab-de-p2).
+
 ## 7. Entorno aislado
 
 Desde la raíz del repositorio en WSL:
