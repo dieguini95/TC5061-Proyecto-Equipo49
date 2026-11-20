@@ -1,10 +1,18 @@
 """Pruebas del despachador de entrenamiento y de la busqueda anidada (sin datos reales)."""
 
+import re
+
 import pytest
 from typer.testing import CliRunner
 
 from mibici_ml import config
 from mibici_ml.modeling import search, train
+
+_ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_ESCAPE.sub("", text)
 
 
 def test_grid_combinations_match_config_grid():
@@ -61,7 +69,17 @@ def test_train_p3_requires_final_k(tmp_path):
         train.app, ["--question", "p3", "--output-dir", str(tmp_path)], color=False
     )
     assert result.exit_code != 0
-    assert "--final-k" in result.output
+    plain_output = _strip_ansi(result.output)
+    assert "--final-k" in plain_output
+    assert "--final-k es obligatorio para p3" in plain_output
+
+
+def test_strip_ansi_preserves_cli_output():
+    assert "--final-k" in _strip_ansi("\x1b[1;33m--final-k\x1b[0m")
+
+    plain_text = "Error: --final-k es obligatorio para p3."
+    assert _strip_ansi(plain_text) == plain_text
+    assert _strip_ansi("\x1b[31mError:\x1b[0m --final-k es obligatorio para p3.") == plain_text
 
 
 def test_registered_name_uses_config_prefix():
