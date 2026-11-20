@@ -1,7 +1,6 @@
 """Pruebas del despachador de entrenamiento y de la busqueda anidada (sin datos reales)."""
 
 import pytest
-import typer
 from typer.testing import CliRunner
 
 from mibici_ml import config
@@ -20,7 +19,9 @@ def test_grid_combinations_match_config_grid():
 
 
 def test_build_model_applies_search_hyperparameters():
-    model = search.risk.build_model("hist_gb", 42, {"learning_rate": 0.05, "max_iter": 300, "max_leaf_nodes": 15})
+    model = search.risk.build_model(
+        "hist_gb", 42, {"learning_rate": 0.05, "max_iter": 300, "max_leaf_nodes": 15}
+    )
     assert model.learning_rate == 0.05
     assert model.max_iter == 300
     assert model.max_leaf_nodes == 15
@@ -56,7 +57,9 @@ def test_train_p2_rejects_model_outside_candidates(tmp_path):
 
 def test_train_p3_requires_final_k(tmp_path):
     runner = CliRunner()
-    result = runner.invoke(train.app, ["--question", "p3", "--output-dir", str(tmp_path)])
+    result = runner.invoke(
+        train.app, ["--question", "p3", "--output-dir", str(tmp_path)], color=False
+    )
     assert result.exit_code != 0
     assert "--final-k" in result.output
 
