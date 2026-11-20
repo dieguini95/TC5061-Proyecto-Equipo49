@@ -1121,7 +1121,7 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 
 ## Integración continua del serving (Actividad 9)
 
-El workflow [CI Serving](.github/workflows/ci-serving.yml) se ejecuta en pull requests hacia `main`, pushes a `main` y ejecuciones manuales. Valida formato y lint con Ruff, ejecuta PyTest y los chequeos offline de seguridad, y corre las pruebas DeepChecks en su entorno aislado. Después construye desde `Containerfile` y prueba health, readiness y predicciones P2/P3 en un contenedor local del runner. No publica imágenes ni despliega. La evidencia de ejecución se documenta en [Actividad 9 - CI Serving](docs/evidencias/Actividad%209%20-%20CI%20Serving/README.md).
+El workflow [CI Serving](.github/workflows/ci-serving.yml) se ejecuta en pull requests hacia `main`, pushes a `main` y ejecuciones manuales. Valida formato y lint con Ruff, ejecuta PyTest y los chequeos offline de seguridad, y corre las pruebas DeepChecks en su entorno aislado. Después construye desde `Containerfile` y prueba health, readiness y predicciones P2/P3 en un contenedor local del runner. No publica imágenes ni despliega. El [Pull Request #22](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/22) validó los cinco jobs en el [run 44682755612](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/actions/runs/44682755612). La evidencia de ejecución se documenta en [Actividad 9 - CI Serving](docs/evidencias/Actividad%209%20-%20CI%20Serving/README.md).
 
 ## Monitoreo offline de drift P2 (Actividad 10)
 
