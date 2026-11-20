@@ -1119,6 +1119,10 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 - El inventario de P2 es una aproximación desde viajes. Quien consume la API debe enviar el estado observado hasta `t` en las variables `riesgo_observado_*`.
 - Solo los modelos exportados (`models/serving/`) están en Git. Los registros locales de MLflow (`mlflow.db`, `mlruns/`) y los datos permanecen excluidos; regenerar el bundle requiere el Registry del equipo.
 
+## Integración continua del serving (Actividad 9)
+
+El workflow [CI Serving](.github/workflows/ci-serving.yml) se ejecuta en pull requests hacia `main`, pushes a `main` y ejecuciones manuales. Valida formato y lint con Ruff, ejecuta PyTest y los chequeos offline de seguridad, y corre las pruebas DeepChecks en su entorno aislado. Después construye desde `Containerfile` y prueba health, readiness y predicciones P2/P3 en un contenedor local del runner. No publica imágenes ni despliega. La evidencia de ejecución se documenta en [Actividad 9 - CI Serving](docs/evidencias/Actividad%209%20-%20CI%20Serving/README.md).
+
 ## Monitoreo offline de drift P2 (Actividad 10)
 
 Evidently compara las 14 variables de entrada de P2 con su distribución de entrenamiento (octubre de 2025 a junio de 2026). Octubre de 2026 es la ventana principal (R1), septiembre muestra la evolución (R2) y la comparación entre octubre de 2025 y octubre de 2026 controla el mes del calendario (R3).
