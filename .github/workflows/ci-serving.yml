@@ -1,0 +1,146 @@
+name: CI Serving
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install Ruff
+        run: python -m pip install "ruff==0.17.1"
+      - name: Check formatting
+        run: python -m ruff format --check .
+      - name: Lint
+        run: python -m ruff check .
+      - name: Check CI Python formatting
+        run: |
+          python -m ruff format --check \
+            scripts/ci_smoke_serving.py \
+            tests/test_ci_smoke_serving.py \
+            tests/test_ci_workflow.py
+      - name: Lint CI Python files
+        run: |
+          python -m ruff check \
+            scripts/ci_smoke_serving.py \
+            tests/test_ci_smoke_serving.py \
+            tests/test_ci_workflow.py
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install project environment
+        run: python -m pip install -r requirements.txt
+      - name: Run test suite
+        run: python -m pytest -q
+
+  deepchecks-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-quality.txt
+      - name: Install isolated DeepChecks environment
+        run: python -m pip install -r requirements-quality.txt
+      - name: Run deterministic DeepChecks tests
+        run: |
+          python -m pytest -q \
+            tests/test_data_validation.py \
+            tests/test_data_validation_p1.py \
+            -k 'test_clean_data_has_no_failed_integrity_checks or test_nulls_are_flagged_by_integrity_suite or test_duplicated_rows_are_counted_and_flagged or test_feature_drift_is_flagged_between_train_and_test or test_missing_label_is_reported_as_not_applicable_not_as_error or test_temporal_overlap_between_train_and_test_is_flagged or test_summary_is_json_serializable_and_counts_are_consistent or test_same_input_gives_same_integrity_summary or test_deepchecks_counts_remain_regression_and_metadata_never_becomes_a_feature or test_deepchecks_p1_detects_introduced_nulls_and_train_test_drift or test_regression_inapplicability_is_distinct_from_real_execution_errors'
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-security.txt
+      - name: Create the security environment
+        run: python -m venv .venv
+      - name: Install project and offline security dependencies
+        run: .venv/bin/python -m pip install -r requirements.txt "bandit==1.9.4"
+      - name: Run offline security checks
+        run: bash scripts/run_security_checks.sh
+
+  image-smoke:
+    needs:
+      - quality
+      - tests
+      - deepchecks-tests
+      - security
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      IMAGE_TAG: mibici-serving:${{ github.sha }}
+      CONTAINER_NAME: mibici-serving-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build serving image
+        run: docker build -f Containerfile --tag "$IMAGE_TAG" .
+      - name: Start container and smoke-test P2/P3
+        run: |
+          docker run --detach \
+            --name "$CONTAINER_NAME" \
+            --publish 127.0.0.1:8000:8000 \
+            "$IMAGE_TAG"
+          python scripts/ci_smoke_serving.py \
+            --base-url http://127.0.0.1:8000 \
+            --timeout 120
+      - name: Cleanup container
+        if: always()
+        run: |
+          if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+            set +e
+            docker logs "$CONTAINER_NAME"
+            logs_status=$?
+            docker stop "$CONTAINER_NAME"
+            stop_status=$?
+            docker rm "$CONTAINER_NAME"
+            rm_status=$?
+            if [ "$logs_status" -ne 0 ] || [ "$stop_status" -ne 0 ] || [ "$rm_status" -ne 0 ]; then
+              printf 'Container cleanup or log collection failed.\n' >&2
+              exit 1
+            fi
+          else
+            printf 'Container was not created; no cleanup was needed.\n'
+          fi
