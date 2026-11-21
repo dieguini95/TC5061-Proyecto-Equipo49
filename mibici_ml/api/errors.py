@@ -48,24 +48,18 @@ def install_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ModelNotReadyError)
-    async def model_not_ready_handler(
-        request: Request, error: ModelNotReadyError
-    ) -> JSONResponse:
+    async def model_not_ready_handler(request: Request, error: ModelNotReadyError) -> JSONResponse:
         del request, error
         return _error_response(503, "MODEL_NOT_READY", "El modelo no está disponible.")
 
     @app.exception_handler(ModelLoadError)
-    async def model_load_handler(
-        request: Request, error: ModelLoadError
-    ) -> JSONResponse:
+    async def model_load_handler(request: Request, error: ModelLoadError) -> JSONResponse:
         del request, error
         logger.error("Model load failed (MODEL_LOAD_FAILED).")
         return _error_response(503, "MODEL_LOAD_FAILED", "No se pudo cargar el modelo.")
 
     @app.exception_handler(BatchSizeLimitError)
-    async def batch_limit_handler(
-        request: Request, error: BatchSizeLimitError
-    ) -> JSONResponse:
+    async def batch_limit_handler(request: Request, error: BatchSizeLimitError) -> JSONResponse:
         del request, error
         return _error_response(
             422,

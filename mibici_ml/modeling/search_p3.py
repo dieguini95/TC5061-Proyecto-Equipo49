@@ -221,7 +221,9 @@ def run_search(
     if any(k < 2 for k in candidate_values):
         raise ValueError("Cada valor de candidate_k debe ser al menos 2.")
     if P3_BASELINE_K in candidate_values:
-        raise ValueError("candidate_k contiene el baseline; k=5 se registra como referencia del padre.")
+        raise ValueError(
+            "candidate_k contiene el baseline; k=5 se registra como referencia del padre."
+        )
     if n_init < 1:
         raise ValueError("n_init debe ser positivo.")
     if register_best and selected_k_override is None:
@@ -325,11 +327,7 @@ def run_search(
                 run_config,
             )
             with mlflow.start_run(
-                run_name=(
-                    "P3-kmeans-k5-baseline"
-                    if is_baseline
-                    else f"P3-kmeans-k{k}-candidate"
-                ),
+                run_name=("P3-kmeans-k5-baseline" if is_baseline else f"P3-kmeans-k{k}-candidate"),
                 nested=True,
             ) as child_run:
                 child_run_ids[k] = child_run.info.run_id
@@ -535,16 +533,32 @@ def _parse_bool(value: str) -> bool:
 @app.command("run")
 def run_command(
     input_path: Annotated[str, typer.Option(help="CSV agregado P3; vacio = config.py.")] = "",
-    output_dir: Annotated[str, typer.Option(help="Directorio de trabajo; vacio = /tmp unico.")] = "",
-    k_values: Annotated[str, typer.Option(help="Ks candidatos separados por coma; vacio = config.py.")] = "",
+    output_dir: Annotated[
+        str, typer.Option(help="Directorio de trabajo; vacio = /tmp unico.")
+    ] = "",
+    k_values: Annotated[
+        str, typer.Option(help="Ks candidatos separados por coma; vacio = config.py.")
+    ] = "",
     random_seed: Annotated[str, typer.Option(help="Semilla; vacio = config.py.")] = "",
     n_init: Annotated[str, typer.Option(help="n_init KMeans; vacio = config.py.")] = "",
-    experiment_name: Annotated[str, typer.Option(help="Nombre del experimento MLflow.")] = P3_SEARCH_EXPERIMENT_NAME,
-    tracking_uri: Annotated[str, typer.Option(help="URI de tracking MLflow.")] = MLFLOW_TRACKING_URI,
-    register_best: Annotated[str, typer.Option(help="Registrar y promover tras validar: true/false.")] = "false",
-    registry_model_name: Annotated[str, typer.Option(help="Nombre fijo en Model Registry; vacio = config.py.")] = "",
-    champion_alias: Annotated[str, typer.Option(help="Alias de producción; vacio = config.py.")] = "",
-    selected_k: Annotated[str, typer.Option(help="Override manual de k; vacio = recomendación.")] = "",
+    experiment_name: Annotated[
+        str, typer.Option(help="Nombre del experimento MLflow.")
+    ] = P3_SEARCH_EXPERIMENT_NAME,
+    tracking_uri: Annotated[
+        str, typer.Option(help="URI de tracking MLflow.")
+    ] = MLFLOW_TRACKING_URI,
+    register_best: Annotated[
+        str, typer.Option(help="Registrar y promover tras validar: true/false.")
+    ] = "false",
+    registry_model_name: Annotated[
+        str, typer.Option(help="Nombre fijo en Model Registry; vacio = config.py.")
+    ] = "",
+    champion_alias: Annotated[
+        str, typer.Option(help="Alias de producción; vacio = config.py.")
+    ] = "",
+    selected_k: Annotated[
+        str, typer.Option(help="Override manual de k; vacio = recomendación.")
+    ] = "",
 ) -> None:
     """Run a nested P3 search; Registry promotion is opt-in and validated."""
     input_path = _normalize_optional(input_path)
@@ -562,9 +576,9 @@ def run_command(
     )
     run_search(
         input_path=input_path or P3_INPUT_PATH,
-        output_dir=Path(output_dir) if output_dir else Path(
-            tempfile.mkdtemp(prefix="mibici-p3-search-")
-        ),
+        output_dir=Path(output_dir)
+        if output_dir
+        else Path(tempfile.mkdtemp(prefix="mibici-p3-search-")),
         candidate_k=candidate_values,
         random_seed=int(random_seed) if random_seed else RANDOM_SEED,
         n_init=int(n_init) if n_init else P3_N_INIT,

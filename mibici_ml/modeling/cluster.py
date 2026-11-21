@@ -79,7 +79,9 @@ def load_station_summary(input_path: Path) -> pd.DataFrame:
     try:
         stations = pd.read_csv(input_path)
     except (OSError, pd.errors.ParserError, UnicodeDecodeError) as error:
-        raise ValueError(f"No se pudo leer el resumen de estaciones: {input_path}: {error}") from error
+        raise ValueError(
+            f"No se pudo leer el resumen de estaciones: {input_path}: {error}"
+        ) from error
     logger.info("Resumen de estaciones cargado desde {}", input_path)
     return stations
 
@@ -179,12 +181,8 @@ def prepare_station_data(
     enriched["capacidad_modelo"] = capacity.mask(zero_capacity, positive_capacity_median)
     features = pd.DataFrame(
         {
-            "log1p_salidas_12m": np.log1p(
-                pd.to_numeric(enriched["salidas_12m"]).astype(float)
-            ),
-            "log1p_llegadas_12m": np.log1p(
-                pd.to_numeric(enriched["llegadas_12m"]).astype(float)
-            ),
+            "log1p_salidas_12m": np.log1p(pd.to_numeric(enriched["salidas_12m"]).astype(float)),
+            "log1p_llegadas_12m": np.log1p(pd.to_numeric(enriched["llegadas_12m"]).astype(float)),
             "capacidad_modelo": enriched["capacidad_modelo"].astype(float),
         },
         index=enriched.index,
@@ -279,9 +277,7 @@ def evaluate_kmeans_candidate(
         "k": k,
         "inertia": float(pipeline.named_steps["kmeans"].inertia_),
         "silhouette_score": float(silhouette_score(scaled_features, labels)),
-        "calinski_harabasz_score": float(
-            calinski_harabasz_score(scaled_features, labels)
-        ),
+        "calinski_harabasz_score": float(calinski_harabasz_score(scaled_features, labels)),
         "davies_bouldin_score": float(davies_bouldin_score(scaled_features, labels)),
         "min_cluster_size": int(cluster_sizes.min()),
         "max_cluster_size": int(cluster_sizes.max()),
@@ -558,7 +554,9 @@ def evaluate_command(
     ],
     k_min: Annotated[int, typer.Option(min=2, help="Primer k que se evaluara, inclusive.")] = 3,
     k_max: Annotated[int, typer.Option(min=2, help="Ultimo k que se evaluara, inclusive.")] = 8,
-    random_seed: Annotated[int, typer.Option(help="Semilla reproducible de KMeans.")] = RANDOM_SEED,
+    random_seed: Annotated[
+        int, typer.Option(help="Semilla reproducible de KMeans.")
+    ] = RANDOM_SEED,
 ) -> None:
     """Evaluate candidate k values without selecting a final k or logging MLflow."""
     _evaluate_and_save(input_path, output_dir, k_min, k_max, random_seed)
@@ -570,7 +568,9 @@ def run_command(
     input_path: Annotated[
         Path, typer.Option(help="CSV agregado versionado de estaciones.")
     ] = TABLES_DIR / "estaciones_resumen.csv",
-    output_dir: Annotated[Path, typer.Option(help="Directorio exclusivo para los siete artefactos.")],
+    output_dir: Annotated[
+        Path, typer.Option(help="Directorio exclusivo para los siete artefactos.")
+    ],
     final_k: Annotated[
         int,
         typer.Option(
@@ -580,8 +580,12 @@ def run_command(
     ],
     k_min: Annotated[int, typer.Option(min=2, help="Primer k que se evaluara, inclusive.")] = 3,
     k_max: Annotated[int, typer.Option(min=2, help="Ultimo k que se evaluara, inclusive.")] = 8,
-    random_seed: Annotated[int, typer.Option(help="Semilla reproducible de KMeans.")] = RANDOM_SEED,
-    with_mlflow: Annotated[bool, typer.Option(help="Registrar el baseline en MLflow local.")] = False,
+    random_seed: Annotated[
+        int, typer.Option(help="Semilla reproducible de KMeans.")
+    ] = RANDOM_SEED,
+    with_mlflow: Annotated[
+        bool, typer.Option(help="Registrar el baseline en MLflow local.")
+    ] = False,
 ) -> None:
     """Fit the explicitly selected baseline and optionally log an MLflow run."""
     if not k_min <= final_k <= k_max:

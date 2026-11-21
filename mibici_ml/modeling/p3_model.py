@@ -68,7 +68,9 @@ class P3ClusterModel(mlflow.pyfunc.PythonModel):
             try:
                 raw[column] = pd.to_numeric(raw[column], errors="raise").astype(float)
             except (TypeError, ValueError) as error:
-                raise ValueError(f"La columna '{column}' debe contener valores numericos.") from error
+                raise ValueError(
+                    f"La columna '{column}' debe contener valores numericos."
+                ) from error
             if not np.isfinite(raw[column].to_numpy(dtype=float)).all():
                 raise ValueError(f"La columna '{column}' contiene valores faltantes o no finitos.")
             if (raw[column] < 0).any():

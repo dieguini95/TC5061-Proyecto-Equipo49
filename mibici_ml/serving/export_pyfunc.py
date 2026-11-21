@@ -33,7 +33,9 @@ def _sanitize_mlmodel(model_dir: Path) -> None:
     """Reemplaza la ruta local que MLflow deja en ``artifact_path`` por un valor neutro."""
     mlmodel = model_dir / "MLmodel"
     text = mlmodel.read_text(encoding="utf-8")
-    clean = re.sub(r"^artifact_path: .*$", f"artifact_path: {EXPORTED_MODEL_DIR}", text, flags=re.MULTILINE)
+    clean = re.sub(
+        r"^artifact_path: .*$", f"artifact_path: {EXPORTED_MODEL_DIR}", text, flags=re.MULTILINE
+    )
     mlmodel.write_text(clean, encoding="utf-8")
 
 
