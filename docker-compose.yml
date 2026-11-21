@@ -1,0 +1,96 @@
+# Orquestación del sistema MiBici (Actividad 9).
+#
+# Levantar todo con un solo comando:
+#   cp .env.example .env              # opcional
+#   docker compose up -d --build
+#
+# Servicios:
+#   api      API de inferencia P3 (pyfunc) y P2 (bundle skops). Contenedor de Containerfile.
+#   mlflow   Servidor de tracking y Registry (SQLite en el volumen mlflow-data).
+#   locust   Generador de carga, solo con el perfil "loadtest" (no arranca por defecto).
+#
+# Los puertos se publican solo en loopback (127.0.0.1). Los valores se toman de .env (ver .env.example).
+
+name: mibici
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: mibici-serving:local
+    container_name: mibici-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    environment:
+      MIBICI_MAX_BATCH_SIZE: ${MIBICI_MAX_BATCH_SIZE:-100}
+    networks:
+      - mibici-net
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPU_LIMIT:-2.0}"
+          memory: ${API_MEM_LIMIT:-1g}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Containerfile.mlflow
+    image: mibici-mlflow:local
+    container_name: mibici-mlflow
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MLFLOW_PORT:-5001}:5000"
+    volumes:
+      - mlflow-data:/mlflow/data
+    networks:
+      - mibici-net
+    deploy:
+      resources:
+        limits:
+          cpus: "${MLFLOW_CPU_LIMIT:-1.0}"
+          memory: ${MLFLOW_MEM_LIMIT:-1g}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2)"
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  locust:
+    profiles:
+      - loadtest
+    build:
+      context: .
+      dockerfile: Containerfile.loadtest
+    image: mibici-loadtest:local
+    container_name: mibici-loadtest
+    environment:
+      LOCUST_HOST: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - mibici-net
+
+networks:
+  mibici-net:
+    driver: bridge
+
+volumes:
+  mlflow-data:
