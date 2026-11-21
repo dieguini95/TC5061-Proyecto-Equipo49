@@ -1,0 +1,9 @@
+etiqueta,escenario,replica,descripcion,usuarios,solicitudes,fallas,tasa_error_pct,rps,predicciones_por_solicitud,predicciones_s,p50_ms,p95_ms,p99_ms,promedio_ms
+S1,S1,única,Nominal: operación habitual,10,546,0,0.0,9.947096,3.769231,37.492899,16.0,29.0,33.0,16.030395
+S2,S2,única,Pico operativo,40,3229,0,0.0,39.27394,3.864045,151.756255,10.0,39.0,81.0,15.350751
+S3,S3,única,Estrés: búsqueda del punto de saturación,80,6283,0,0.0,76.437863,3.73102,285.19121,32.0,150.0,220.0,44.997037
+S4a,S4a,única,Línea base: P2 unitario sin espera,20,4208,0,0.0,71.123576,1.0,71.123576,280.0,310.0,380.0,280.382772
+S4b_r1,S4b,r1,Optimización: P2 por lotes de 20 sin espera,20,3822,0,0.0,64.611021,20.0,1292.220415,310.0,350.0,400.0,308.382726
+S4b_r2,S4b,r2,Optimización: P2 por lotes de 20 sin espera,20,4054,0,0.0,68.529999,20.0,1370.599972,290.0,330.0,400.0,290.931332
+S5_r1,S5,r1,Right-sizing: P2 por lotes con 1 vCPU,20,5314,0,0.0,89.885337,20.0,1797.706739,220.0,280.0,360.0,221.889171
+S5_r2,S5,r2,Right-sizing: P2 por lotes con 1 vCPU,20,5111,0,0.0,86.524824,20.0,1730.496488,220.0,300.0,390.0,230.547245

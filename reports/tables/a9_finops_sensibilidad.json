@@ -1,0 +1,527 @@
+[
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.087209
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.043605
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.02907
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.02907
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.014535
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.00969
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.017442
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.008721
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.005814
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.012458
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.006229
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.004153
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.008721
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.00436
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.002907
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.354678
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.177339
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.118226
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.118226
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.059113
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.039409
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.070936
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.035468
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.023645
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.050668
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.025334
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.016889
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.035468
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.017734
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.011823
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.1,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.412014
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.206007
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.137338
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.3,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.137338
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.068669
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.045779
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.5,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.082403
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.041201
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.027468
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.7,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.058859
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.02943
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.01962
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 1.0,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 665.705097,
+    "usd_por_1M": 0.041201
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1331.410193,
+    "usd_por_1M": 0.020601
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1997.11529,
+    "usd_por_1M": 0.013734
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.1,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.155479
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1764.101613,
+    "usd_por_1M": 0.077739
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 2646.15242,
+    "usd_por_1M": 0.051826
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.3,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.051826
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1764.101613,
+    "usd_por_1M": 0.025913
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 2646.15242,
+    "usd_por_1M": 0.017275
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.5,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.031096
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1764.101613,
+    "usd_por_1M": 0.015548
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 2646.15242,
+    "usd_por_1M": 0.010365
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.7,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.022211
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1764.101613,
+    "usd_por_1M": 0.011106
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 2646.15242,
+    "usd_por_1M": 0.007404
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 1.0,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.015548
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 1764.101613,
+    "usd_por_1M": 0.007774
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 2646.15242,
+    "usd_por_1M": 0.005183
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 441.025403,
+    "usd_por_1M": 0.155479
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.077739
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.1,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1323.07621,
+    "usd_por_1M": 0.051826
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 441.025403,
+    "usd_por_1M": 0.051826
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.025913
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.3,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1323.07621,
+    "usd_por_1M": 0.017275
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 441.025403,
+    "usd_por_1M": 0.031096
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.015548
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.5,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1323.07621,
+    "usd_por_1M": 0.010365
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 441.025403,
+    "usd_por_1M": 0.022211
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.011106
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 0.7,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1323.07621,
+    "usd_por_1M": 0.007404
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 0.5,
+    "predicciones_s": 441.025403,
+    "usd_por_1M": 0.015548
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.0,
+    "predicciones_s": 882.050807,
+    "usd_por_1M": 0.007774
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "utilizacion": 1.0,
+    "factor_capacidad": 1.5,
+    "predicciones_s": 1323.07621,
+    "usd_por_1M": 0.005183
+  }
+]

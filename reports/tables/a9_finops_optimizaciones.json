@@ -1,0 +1,50 @@
+[
+  {
+    "id": "O1",
+    "optimizacion": "Inferencia por lotes de 20 estaciones",
+    "base": "EC2 t3.small, unitaria (S4a)",
+    "usd_por_1M_base": 0.116609,
+    "optimizada": "EC2 t3.small, lote de 20 (S4b)",
+    "usd_por_1M_optimizada": 0.006229,
+    "ahorro_pct": 94.658027,
+    "factor_mejora": 18.719674,
+    "evidencia": "S4a vs S4b_r1/r2 con 2 vCPU; mismo tipo de instancia",
+    "limitacion": "La capacidad se midió en Apple M3 Pro; la nube puede diferir"
+  },
+  {
+    "id": "O2",
+    "optimizacion": "Right-sizing de CPU: 2 a 1 vCPU con lote",
+    "base": "Fargate 2 vCPU / 4 GB, lote (S4b)",
+    "usd_por_1M_base": 0.02943,
+    "optimizada": "Fargate 1 vCPU / 2 GB, lote (S5)",
+    "usd_por_1M_optimizada": 0.011106,
+    "ahorro_pct": 62.26379,
+    "factor_mejora": 2.649975,
+    "evidencia": "S5 con 1 vCPU rindió igual o más que S4b con 2 vCPU",
+    "limitacion": "Hipótesis no verificada: contención de hilos o GIL con 2 vCPU"
+  },
+  {
+    "id": "O3",
+    "optimizacion": "Ejecución programada en lugar de siempre encendido",
+    "base": "Fargate 1 vCPU / 2 GB, 24 h encendido (demanda horaria)",
+    "usd_por_1M_base": 102.004959,
+    "optimizada": "Fargate 1 vCPU / 2 GB, 1 tarea por hora",
+    "usd_por_1M_optimizada": 1.700083,
+    "ahorro_pct": 98.333333,
+    "factor_mejora": 60.0,
+    "evidencia": "Capacidad de 1 vCPU medida; mínimo facturable de 60 s",
+    "limitacion": "No mide arranque en frío ni carga del modelo; supone 1 corrida por hora"
+  },
+  {
+    "id": "O4",
+    "optimizacion": "Right-sizing de memoria: 4 GiB a 2 GiB",
+    "base": "EC2 c6i.large (4 GiB), 24 h (demanda horaria); pico API 230 MiB",
+    "usd_por_1M_base": 175.619835,
+    "optimizada": "EC2 t3.small (2 GiB), 24 h (demanda horaria)",
+    "usd_por_1M_optimizada": 43.181818,
+    "ahorro_pct": 75.411765,
+    "factor_mejora": 4.066986,
+    "evidencia": "Pico de memoria medido de la API: 230 MiB (límite de compose 1 GiB)",
+    "limitacion": "t3 tiene línea base de 20% por vCPU; con carga sostenida aplica modo unlimited"
+  }
+]

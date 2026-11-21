@@ -1,0 +1,4 @@
+configuracion,predicciones_s,replicas,dispersion_pct,fuente
+unitaria_2vcpu,71.123576,1,0.0,S4a (API 2 vCPU)
+lote_2vcpu,1331.410193,2,5.886958,"S4b_r1, S4b_r2 (API 2 vCPU, lote de 20)"
+lote_1vcpu,1764.101613,2,3.809885,"S5_r1, S5_r2 (API 1 vCPU, lote de 20)"

@@ -1,0 +1,24 @@
+instancia,modo,precio_h_usd,predicciones_s_capacidad,usd_por_1000,usd_por_1M,notas
+"EC2 t3.small (2 vCPU, 2 GiB)",capacidad 70% (lote de 20),0.0209,1331.410193,6e-06,0.006229,medida (2 vCPU)
+"EC2 t3.small (2 vCPU, 2 GiB)",capacidad 70% (unitaria),0.0209,71.123576,0.000117,0.116609,medida (2 vCPU)
+"EC2 t3.small (2 vCPU, 2 GiB)","demanda horaria, siempre encendida",0.0209,,0.043182,43.181818,484 consultas por hora
+"EC2 t3.small (2 vCPU, 2 GiB)","demanda cada 5 min, siempre encendida",0.0209,,0.003598,3.598485,484 consultas cada 5 min
+"EC2 c6i.large (2 vCPU, 4 GiB)",capacidad 70% (lote de 20),0.085,1331.410193,2.5e-05,0.025334,medida (2 vCPU)
+"EC2 c6i.large (2 vCPU, 4 GiB)",capacidad 70% (unitaria),0.085,71.123576,0.000474,0.474247,medida (2 vCPU)
+"EC2 c6i.large (2 vCPU, 4 GiB)","demanda horaria, siempre encendida",0.085,,0.17562,175.619835,484 consultas por hora
+"EC2 c6i.large (2 vCPU, 4 GiB)","demanda cada 5 min, siempre encendida",0.085,,0.014635,14.634986,484 consultas cada 5 min
+Fargate 2 vCPU / 4 GB,capacidad 70% (lote de 20),0.098741,1331.410193,2.9e-05,0.02943,medida (2 vCPU)
+Fargate 2 vCPU / 4 GB,capacidad 70% (unitaria),0.098741,71.123576,0.000551,0.550912,medida (2 vCPU)
+Fargate 2 vCPU / 4 GB,"demanda horaria, siempre encendida",0.098741,,0.20401,204.009917,484 consultas por hora
+Fargate 2 vCPU / 4 GB,"demanda cada 5 min, siempre encendida",0.098741,,0.017001,17.000826,484 consultas cada 5 min
+Fargate 1 vCPU / 2 GB,capacidad 70% (lote de 20),0.04937,1764.101613,1.1e-05,0.011106,"medida (1 vCPU, lote)"
+Fargate 1 vCPU / 2 GB,"demanda horaria, siempre encendida",0.04937,,0.102005,102.004959,484 consultas por hora
+Fargate 1 vCPU / 2 GB,"demanda cada 5 min, siempre encendida",0.04937,,0.0085,8.500413,484 consultas cada 5 min
+Fargate 0.5 vCPU / 1 GB (extrapolada),capacidad 70% (lote de 20),0.024685,882.050807,1.1e-05,0.011106,extrapolada: 0.5 x medición con 1 vCPU (no medida)
+Fargate 0.5 vCPU / 1 GB (extrapolada),"demanda horaria, siempre encendida",0.024685,,0.051002,51.002479,484 consultas por hora
+Fargate 0.5 vCPU / 1 GB (extrapolada),"demanda cada 5 min, siempre encendida",0.024685,,0.00425,4.250207,484 consultas cada 5 min
+"EC2 t3.small (2 vCPU, 2 GiB)","capacidad 70% (lote), t3 modo unlimited",0.0709,1331.410193,2.1e-05,0.021132,carga sostenida al 70%: consume línea base de 20% por vCPU y paga excedente
+Fargate 1 vCPU / 2 GB,"programado, 1 corrida por hora",,,0.0017,1.700083,24 tareas/día; activo 0.27 s; mínimo facturable 60 s
+Fargate 1 vCPU / 2 GB,"programado, cada 5 min",,,0.0017,1.700083,288 tareas/día; activo 0.27 s; mínimo facturable 60 s
+AWS Lambda 1 GB,"por solicitud, duración supuesta 16 ms",,,0.000467,0.466667,tarifa x86 de referencia; sin arranque en frío ni carga del modelo
+Cloud Run 1 vCPU / 512 MiB,"por solicitud, duración supuesta 16 ms",,,0.000804,0.804,tarifa request-based de referencia; duración supuesta
