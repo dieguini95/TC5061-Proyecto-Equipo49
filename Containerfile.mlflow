@@ -1,0 +1,48 @@
+# Servidor de tracking y Registry de MLflow para el stack de Compose (Actividad 9).
+# Misma base que la API de inferencia (Containerfile). No contiene secretos ni modelos:
+# el backend SQLite y los artefactos viven en el volumen mlflow-data.
+#
+#   docker compose up -d mlflow        # http://127.0.0.1:${MLFLOW_PORT:-5001}
+#
+# Con Podman: podman build --format docker -f Containerfile.mlflow -t mibici-mlflow .
+
+FROM docker.io/library/python:3.12-slim
+
+LABEL org.opencontainers.image.title="mibici-mlflow" \
+      org.opencontainers.image.description="Servidor MLflow 3.17.1 (tracking y Registry) para MiBici"
+
+# El servicio solo necesita tracking y Registry. Sin MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false,
+# MLflow 3.17 arranca cinco o más procesos huey_consumer (~160 MB cada uno) que no se usan aquí.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false
+
+WORKDIR /mlflow
+
+# Usuario sin privilegios; el directorio de datos pertenece a ese usuario.
+RUN groupadd --system --gid 10001 mlflow \
+    && useradd --system --uid 10001 --gid mlflow --no-create-home --shell /usr/sbin/nologin mlflow \
+    && mkdir -p /mlflow/data \
+    && chown -R 10001:10001 /mlflow
+
+# Versión fijada igual que requirements.txt (tests/test_compose_and_loadtest.py lo verifica).
+RUN pip install --no-cache-dir --no-compile "mlflow==3.17.1"
+
+USER 10001:10001
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2)"]
+
+# Un solo worker: por defecto MLflow lanza un worker por CPU del host y, con el límite de memoria
+# del contenedor, los hijos mueren por OOM. --allowed-hosts incluye el nombre del servicio en la red.
+CMD ["mlflow", "server", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--workers", "1", \
+     "--allowed-hosts", "localhost,127.0.0.1,mlflow", \
+     "--backend-store-uri", "sqlite:////mlflow/data/mlflow.db", \
+     "--artifacts-destination", "/mlflow/data/artifacts", \
+     "--serve-artifacts"]

@@ -1,0 +1,14 @@
+{
+  "escenario": "S4a",
+  "descripcion": "Línea base: P2 unitario sin espera",
+  "user_class": "P2UnitUser",
+  "usuarios": 20,
+  "tasa_spawn": 20,
+  "duracion_total_s": 60,
+  "rampa_s": 1,
+  "medicion_s": 59,
+  "inicio_locust_utc": "2026-11-21T12:04:34+00:00",
+  "inicio_medicion_utc": "2026-11-21T12:04:35+00:00",
+  "fin_medicion_utc": "2026-11-21T12:05:34+00:00",
+  "codigo_salida_locust": 0
+}

@@ -1,0 +1,3 @@
+# Generador de carga de la Actividad 9 (Locust). No forma parte de la imagen de inferencia.
+# Se usa desde el host (entorno .venv-a9) y dentro de Containerfile.loadtest (perfil loadtest).
+locust==2.47.0

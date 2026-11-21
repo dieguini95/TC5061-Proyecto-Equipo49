@@ -1,0 +1,59 @@
+{
+  "generado_con": "scripts/finops_analysis.py",
+  "supuestos": {
+    "estaciones": 484,
+    "predicciones_por_lote": 20,
+    "utilizacion_capacidad": 0.7,
+    "demanda_predicciones_dia": {
+      "horario": 11616,
+      "cada_5_min": 139392
+    },
+    "duracion_inferencia_serverless_s": 0.016,
+    "minimo_facturable_fargate_s": 60
+  },
+  "tarifas_referencia": {
+    "ec2_usd_h": {
+      "t3.small": 0.0209,
+      "c6i.large": 0.085
+    },
+    "t3_linea_base_por_vcpu": 0.2,
+    "t3_unlimited_usd_vcpu_h": 0.05,
+    "fargate_usd_vcpu_s": 1.1244e-05,
+    "fargate_usd_gb_s": 1.235e-06,
+    "lambda_usd_gb_s": 1.66667e-05,
+    "lambda_usd_por_solicitud": 2.0000000000000002e-07,
+    "cloud_run_usd_vcpu_s": 2.4e-05,
+    "cloud_run_usd_gib_s": 2.5e-06,
+    "cloud_run_usd_por_solicitud": 4.0000000000000003e-07,
+    "nota": "Tarifas públicas de referencia us-east-1; verificar en AWS y Google antes de la entrega."
+  },
+  "capacidad_medida": {
+    "unitaria_2vcpu": {
+      "predicciones_s": 71.1235762374431,
+      "replicas": 1,
+      "dispersion_pct": 0.0,
+      "fuente": "S4a (API 2 vCPU)"
+    },
+    "lote_2vcpu": {
+      "predicciones_s": 1331.4101934517025,
+      "replicas": 2,
+      "dispersion_pct": 5.886957890247616,
+      "fuente": "S4b_r1, S4b_r2 (API 2 vCPU, lote de 20)"
+    },
+    "lote_1vcpu": {
+      "predicciones_s": 1764.101613318071,
+      "replicas": 2,
+      "dispersion_pct": 3.8098854376989086,
+      "fuente": "S5_r1, S5_r2 (API 1 vCPU, lote de 20)"
+    }
+  },
+  "limitaciones": [
+    "Capacidad medida en Apple M3 Pro (arm64) con Docker Desktop; las instancias cloud son x86 y no se midieron.",
+    "Locust corre en la misma máquina que la API y compite por CPU.",
+    "t3.small tiene línea base de 20% por vCPU; la carga sostenida consume créditos o paga modo unlimited (fila específica en a9_finops_costos).",
+    "Fargate 0.5 vCPU / 1 GB es extrapolación lineal; no se midió.",
+    "Lambda y Cloud Run usan 16 ms por solicitud (p50 de S1 con carga baja); no se midió en la plataforma ni incluye arranque en frío.",
+    "No se incluye costo de almacenamiento, transferencia de red ni del contenedor MLflow en el costo por inferencia.",
+    "El plan inicial estimaba ~360 estaciones; se usan 484 (catálogo 2026-09)."
+  ]
+}
