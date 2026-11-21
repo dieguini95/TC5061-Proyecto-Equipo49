@@ -1,0 +1,14 @@
+{
+  "escenario": "S2",
+  "descripcion": "Pico operativo",
+  "user_class": "MiBiciMixedUser",
+  "usuarios": 40,
+  "tasa_spawn": 5,
+  "duracion_total_s": 90,
+  "rampa_s": 8,
+  "medicion_s": 82,
+  "inicio_locust_utc": "2026-11-21T12:01:04+00:00",
+  "inicio_medicion_utc": "2026-11-21T12:01:12+00:00",
+  "fin_medicion_utc": "2026-11-21T12:02:34+00:00",
+  "codigo_salida_locust": 0
+}
