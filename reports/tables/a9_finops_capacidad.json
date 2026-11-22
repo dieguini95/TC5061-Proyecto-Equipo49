@@ -1,0 +1,23 @@
+[
+  {
+    "configuracion": "unitaria_2vcpu",
+    "predicciones_s": 71.123576,
+    "replicas": 1,
+    "dispersion_pct": 0.0,
+    "fuente": "S4a (API 2 vCPU)"
+  },
+  {
+    "configuracion": "lote_2vcpu",
+    "predicciones_s": 1331.410193,
+    "replicas": 2,
+    "dispersion_pct": 5.886958,
+    "fuente": "S4b_r1, S4b_r2 (API 2 vCPU, lote de 20)"
+  },
+  {
+    "configuracion": "lote_1vcpu",
+    "predicciones_s": 1764.101613,
+    "replicas": 2,
+    "dispersion_pct": 3.809885,
+    "fuente": "S5_r1, S5_r2 (API 1 vCPU, lote de 20)"
+  }
+]

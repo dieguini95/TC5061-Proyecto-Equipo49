@@ -1,0 +1,14 @@
+{
+  "escenario": "S4b",
+  "descripcion": "Optimización: P2 por lotes de 20 sin espera",
+  "user_class": "P2BatchUser",
+  "usuarios": 20,
+  "tasa_spawn": 20,
+  "duracion_total_s": 60,
+  "rampa_s": 1,
+  "medicion_s": 59,
+  "inicio_locust_utc": "2026-11-21T12:05:49+00:00",
+  "inicio_medicion_utc": "2026-11-21T12:05:50+00:00",
+  "fin_medicion_utc": "2026-11-21T12:06:49+00:00",
+  "codigo_salida_locust": 0
+}

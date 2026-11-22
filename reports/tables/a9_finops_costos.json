@@ -1,0 +1,209 @@
+[
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "modo": "capacidad 70% (lote de 20)",
+    "precio_h_usd": 0.0209,
+    "predicciones_s_capacidad": 1331.410193,
+    "usd_por_1000": 6e-06,
+    "usd_por_1M": 0.006229,
+    "notas": "medida (2 vCPU)"
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "modo": "capacidad 70% (unitaria)",
+    "precio_h_usd": 0.0209,
+    "predicciones_s_capacidad": 71.123576,
+    "usd_por_1000": 0.000117,
+    "usd_por_1M": 0.116609,
+    "notas": "medida (2 vCPU)"
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "modo": "demanda horaria, siempre encendida",
+    "precio_h_usd": 0.0209,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.043182,
+    "usd_por_1M": 43.181818,
+    "notas": "484 consultas por hora"
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "modo": "demanda cada 5 min, siempre encendida",
+    "precio_h_usd": 0.0209,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.003598,
+    "usd_por_1M": 3.598485,
+    "notas": "484 consultas cada 5 min"
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "modo": "capacidad 70% (lote de 20)",
+    "precio_h_usd": 0.085,
+    "predicciones_s_capacidad": 1331.410193,
+    "usd_por_1000": 2.5e-05,
+    "usd_por_1M": 0.025334,
+    "notas": "medida (2 vCPU)"
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "modo": "capacidad 70% (unitaria)",
+    "precio_h_usd": 0.085,
+    "predicciones_s_capacidad": 71.123576,
+    "usd_por_1000": 0.000474,
+    "usd_por_1M": 0.474247,
+    "notas": "medida (2 vCPU)"
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "modo": "demanda horaria, siempre encendida",
+    "precio_h_usd": 0.085,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.17562,
+    "usd_por_1M": 175.619835,
+    "notas": "484 consultas por hora"
+  },
+  {
+    "instancia": "EC2 c6i.large (2 vCPU, 4 GiB)",
+    "modo": "demanda cada 5 min, siempre encendida",
+    "precio_h_usd": 0.085,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.014635,
+    "usd_por_1M": 14.634986,
+    "notas": "484 consultas cada 5 min"
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "modo": "capacidad 70% (lote de 20)",
+    "precio_h_usd": 0.098741,
+    "predicciones_s_capacidad": 1331.410193,
+    "usd_por_1000": 2.9e-05,
+    "usd_por_1M": 0.02943,
+    "notas": "medida (2 vCPU)"
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "modo": "capacidad 70% (unitaria)",
+    "precio_h_usd": 0.098741,
+    "predicciones_s_capacidad": 71.123576,
+    "usd_por_1000": 0.000551,
+    "usd_por_1M": 0.550912,
+    "notas": "medida (2 vCPU)"
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "modo": "demanda horaria, siempre encendida",
+    "precio_h_usd": 0.098741,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.20401,
+    "usd_por_1M": 204.009917,
+    "notas": "484 consultas por hora"
+  },
+  {
+    "instancia": "Fargate 2 vCPU / 4 GB",
+    "modo": "demanda cada 5 min, siempre encendida",
+    "precio_h_usd": 0.098741,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.017001,
+    "usd_por_1M": 17.000826,
+    "notas": "484 consultas cada 5 min"
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "modo": "capacidad 70% (lote de 20)",
+    "precio_h_usd": 0.04937,
+    "predicciones_s_capacidad": 1764.101613,
+    "usd_por_1000": 1.1e-05,
+    "usd_por_1M": 0.011106,
+    "notas": "medida (1 vCPU, lote)"
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "modo": "demanda horaria, siempre encendida",
+    "precio_h_usd": 0.04937,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.102005,
+    "usd_por_1M": 102.004959,
+    "notas": "484 consultas por hora"
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "modo": "demanda cada 5 min, siempre encendida",
+    "precio_h_usd": 0.04937,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.0085,
+    "usd_por_1M": 8.500413,
+    "notas": "484 consultas cada 5 min"
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "modo": "capacidad 70% (lote de 20)",
+    "precio_h_usd": 0.024685,
+    "predicciones_s_capacidad": 882.050807,
+    "usd_por_1000": 1.1e-05,
+    "usd_por_1M": 0.011106,
+    "notas": "extrapolada: 0.5 x medición con 1 vCPU (no medida)"
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "modo": "demanda horaria, siempre encendida",
+    "precio_h_usd": 0.024685,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.051002,
+    "usd_por_1M": 51.002479,
+    "notas": "484 consultas por hora"
+  },
+  {
+    "instancia": "Fargate 0.5 vCPU / 1 GB (extrapolada)",
+    "modo": "demanda cada 5 min, siempre encendida",
+    "precio_h_usd": 0.024685,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.00425,
+    "usd_por_1M": 4.250207,
+    "notas": "484 consultas cada 5 min"
+  },
+  {
+    "instancia": "EC2 t3.small (2 vCPU, 2 GiB)",
+    "modo": "capacidad 70% (lote), t3 modo unlimited",
+    "precio_h_usd": 0.0709,
+    "predicciones_s_capacidad": 1331.410193,
+    "usd_por_1000": 2.1e-05,
+    "usd_por_1M": 0.021132,
+    "notas": "carga sostenida al 70%: consume línea base de 20% por vCPU y paga excedente"
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "modo": "programado, 1 corrida por hora",
+    "precio_h_usd": null,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.0017,
+    "usd_por_1M": 1.700083,
+    "notas": "24 tareas/día; activo 0.27 s; mínimo facturable 60 s"
+  },
+  {
+    "instancia": "Fargate 1 vCPU / 2 GB",
+    "modo": "programado, cada 5 min",
+    "precio_h_usd": null,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.0017,
+    "usd_por_1M": 1.700083,
+    "notas": "288 tareas/día; activo 0.27 s; mínimo facturable 60 s"
+  },
+  {
+    "instancia": "AWS Lambda 1 GB",
+    "modo": "por solicitud, duración supuesta 16 ms",
+    "precio_h_usd": null,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.000467,
+    "usd_por_1M": 0.466667,
+    "notas": "tarifa x86 de referencia; sin arranque en frío ni carga del modelo"
+  },
+  {
+    "instancia": "Cloud Run 1 vCPU / 512 MiB",
+    "modo": "por solicitud, duración supuesta 16 ms",
+    "precio_h_usd": null,
+    "predicciones_s_capacidad": null,
+    "usd_por_1000": 0.000804,
+    "usd_por_1M": 0.804,
+    "notas": "tarifa request-based de referencia; duración supuesta"
+  }
+]

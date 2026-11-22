@@ -1123,6 +1123,26 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 
 El workflow [CI Serving](.github/workflows/ci-serving.yml) se ejecuta en pull requests hacia `main`, pushes a `main` y ejecuciones manuales. Valida formato y lint con Ruff, ejecuta PyTest y los chequeos offline de seguridad, y corre las pruebas DeepChecks en su entorno aislado. Después construye desde `Containerfile` y prueba health, readiness y predicciones P2/P3 en un contenedor local del runner. No publica imágenes ni despliega. El [Pull Request #22](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/22) validó los cinco jobs en el [run 44682755612](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/actions/runs/44682755612). La evidencia de ejecución se documenta en [Actividad 9 - CI Serving](docs/evidencias/Actividad%209%20-%20CI%20Serving/README.md).
 
+### Stack local con Compose, pruebas de carga y FinOps
+
+El archivo [`docker-compose.yml`](docker-compose.yml) levanta la API de inferencia (P2 y P3), el servidor MLflow y, con el perfil `loadtest`, un generador de carga Locust. Todo corre en la red `mibici-net`, con healthchecks, volumen persistente para MLflow, límites de CPU y memoria, y puertos publicados solo en `127.0.0.1`. Las variables se documentan en [`.env.example`](.env.example).
+
+```bash
+cp .env.example .env             # opcional: puertos y límites locales
+docker compose up -d --build     # API en http://127.0.0.1:8000 y MLflow en http://127.0.0.1:5001
+docker compose ps                # api y mlflow deben quedar "healthy"
+docker compose --profile loadtest run --rm locust   # carga de humo de 20 s desde la red del stack
+docker compose down
+```
+
+Las mediciones oficiales corren desde el host con `scripts/run_a9_scenarios.py`, que sincroniza Locust con `docker stats`. Los resultados principales en el equipo de medición (Apple M3 Pro, Docker Desktop):
+
+- **Rendimiento:** con un lote de 20 estaciones, la API sirve unas 1,300 a 1,800 predicciones por segundo. Sin lotes, sirve unas 71. Ninguna corrida tuvo fallas.
+- **Recursos:** la API usa entre 215 y 230 MiB de memoria y MLflow unos 352 MiB, ambos dentro de su límite de 1 GiB.
+- **FinOps:** el costo por inferencia está dominado por la utilización. Al 70 % de capacidad con lote, una instancia de 2 vCPU cuesta entre 0.006 y 0.03 dólares por millón de inferencias. Con la demanda horaria real de MiBici (484 estaciones, 24 cortes al día) cuesta entre 43 y 176 dólares por millón si la instancia queda encendida todo el día. Ejecutar la carga programada por hora reduce ese costo a unos 1.70 dólares por millón.
+
+Detalle, gráficas y limitaciones: [Actividad 9 - Operación y FinOps](docs/evidencias/Actividad%209%20-%20Operacion%20y%20FinOps/README.md). Análisis reproducible con `.venv-a9/bin/python scripts/finops_analysis.py`.
+
 ## Monitoreo offline de drift P2 (Actividad 10)
 
 Evidently compara las 14 variables de entrada de P2 con su distribución de entrenamiento (octubre de 2025 a junio de 2026). Octubre de 2026 es la ventana principal (R1), septiembre muestra la evolución (R2) y la comparación entre octubre de 2025 y octubre de 2026 controla el mes del calendario (R3).

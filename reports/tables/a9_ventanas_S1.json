@@ -1,0 +1,14 @@
+{
+  "escenario": "S1",
+  "descripcion": "Nominal: operación habitual",
+  "user_class": "MiBiciMixedUser",
+  "usuarios": 10,
+  "tasa_spawn": 2,
+  "duracion_total_s": 60,
+  "rampa_s": 5,
+  "medicion_s": 55,
+  "inicio_locust_utc": "2026-11-21T11:59:49+00:00",
+  "inicio_medicion_utc": "2026-11-21T11:59:54+00:00",
+  "fin_medicion_utc": "2026-11-21T12:00:49+00:00",
+  "codigo_salida_locust": 0
+}

@@ -1,0 +1,30 @@
+{
+  "generado_utc": "2026-11-21T11:59:45+00:00",
+  "host_url": "http://127.0.0.1:8000",
+  "plataforma": "macOS-26.7.1-arm64-arm-64bit",
+  "procesador": "Apple M3 Pro",
+  "docker_server": "29.8.0",
+  "docker_cpus_vm": "11",
+  "docker_memoria_vm_bytes": 8319369216,
+  "docker_arquitectura": "aarch64",
+  "docker_compose": "5.5.1",
+  "locust": "locust 2.47.0 from /Users/Diego.Sanchez/Documents/other/MNA/mlops/proyecto/TC5061-Proyecto-Equipo49/.venv-a9/lib/python3.12/site-packages/locust (Python 3.12.13)",
+  "python": "3.12.13",
+  "commit": "a843407",
+  "rama": "feat/a9-compose-locust-finops",
+  "semilla_payloads": 42,
+  "contenedores": {
+    "mibici-api": {
+      "imagen": "mibici-serving:local",
+      "imagen_id": "sha256:1737d529b8c3111926ab7332fce512fee65810b9d42d183eda0b5eac2d7d2d07",
+      "limite_cpus": 2.0,
+      "limite_memoria_bytes": 1073741824
+    },
+    "mibici-mlflow": {
+      "imagen": "mibici-mlflow:local",
+      "imagen_id": "sha256:598430850f4637beb49e4806fab39f33b0cc67b31213421cd2636f31517eaa76",
+      "limite_cpus": 1.0,
+      "limite_memoria_bytes": 1073741824
+    }
+  }
+}

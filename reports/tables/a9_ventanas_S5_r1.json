@@ -1,0 +1,15 @@
+{
+  "escenario": "S5",
+  "descripcion": "Right-sizing: P2 por lotes con 1 vCPU",
+  "user_class": "P2BatchUser",
+  "usuarios": 20,
+  "tasa_spawn": 20,
+  "duracion_total_s": 60,
+  "rampa_s": 1,
+  "medicion_s": 59,
+  "inicio_locust_utc": "2026-11-21T12:08:41+00:00",
+  "inicio_medicion_utc": "2026-11-21T12:08:42+00:00",
+  "fin_medicion_utc": "2026-11-21T12:09:41+00:00",
+  "limite_cpus_api": 1.0,
+  "codigo_salida_locust": 0
+}
