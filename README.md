@@ -631,8 +631,12 @@ Pull requests del proyecto:
 | [#18](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/18) | `fix/serving-bundle-versionado` | dieguini95 (Diego Sánchez) | Drezneck-RM (Saúl Salgado) |
 | [#19](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/19) | `feat/actividad10-monitoring-drift-p2` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
 | [#20](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/20) | `feat/actividad10-drift-real-ab-p2` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
+| [#21](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/21) | `build/actividad10-reproduccion-p2` | Drezneck-RM (Saúl Salgado) | dieguini95 (Diego Sánchez) |
+| [#22](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/22) | `feat/a9-ci-serving` | DaniRuan (Daniel Ruán) | dieguini95 (Diego Sánchez) |
+| [#23](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/23) | `feat/a9-compose-locust-finops` | dieguini95 (Diego Sánchez) | DaniRuan (Daniel Ruán) |
+| [#24](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/24) | `build/actividad9-compose-make` | Drezneck-RM (Saúl Salgado) | Pendiente |
 
-Los PR #1 a #20 están fusionados en `main`. El PR #14 cerró la Actividad 7. Los PR #19 y #20 incorporaron el monitoreo y la comparación de modelos de la Actividad 10.
+Los PR #1 a #23 están fusionados en `main`. El PR #14 cerró la Actividad 7. Los PR #19, #20 y #21 incorporaron el monitoreo y la comparación de modelos de la Actividad 10. Los PR #22 y #23 incorporaron CI, Compose, Locust y FinOps de la Actividad 9; el PR #24 añade los comandos Make y la validación de Compose en CI.
 
 Roles del equipo: Daniel Ruán (P3 y revisión de PRs); Saúl Salgado (P1: ingesta, variables y baseline de demanda);
 Diego Sánchez (P2 y cierre del repositorio).
@@ -1121,7 +1125,7 @@ local de **689.4 MB a 529.1 MB** (MB decimales de `podman image inspect`, ahorro
 
 ## Integración continua del serving (Actividad 9)
 
-El workflow [CI Serving](.github/workflows/ci-serving.yml) se ejecuta en pull requests hacia `main`, pushes a `main` y ejecuciones manuales. Valida formato y lint con Ruff, ejecuta PyTest y los chequeos offline de seguridad, y corre las pruebas DeepChecks en su entorno aislado. Después construye desde `Containerfile` y prueba health, readiness y predicciones P2/P3 en un contenedor local del runner. No publica imágenes ni despliega. El [Pull Request #22](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/22) validó los cinco jobs en el [run 44682755612](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/actions/runs/44682755612). La evidencia de ejecución se documenta en [Actividad 9 - CI Serving](docs/evidencias/Actividad%209%20-%20CI%20Serving/README.md).
+El workflow [CI Serving](.github/workflows/ci-serving.yml) se ejecuta en pull requests hacia `main`, pushes a `main` y ejecuciones manuales. Valida formato y lint con Ruff, ejecuta PyTest y los chequeos offline de seguridad, y corre las pruebas DeepChecks en su entorno aislado. Después construye desde `Containerfile` y prueba health, readiness y predicciones P2/P3 en un contenedor local del runner. No publica imágenes ni despliega. El [Pull Request #22](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/pull/22) validó los cinco jobs en el [run 44682755612](https://github.com/dieguini95/TC5061-Proyecto-Equipo49/actions/runs/44682755612). La evidencia de ejecución se documenta en [Actividad 9 - CI Serving](docs/evidencias/Actividad%209%20-%20CI%20Serving/README.md). El job adicional `compose-config` valida `docker-compose.yml` con `docker compose config --quiet` en un runner Ubuntu y tiene un límite de 5 minutos.
 
 ### Stack local con Compose, pruebas de carga y FinOps
 
@@ -1142,6 +1146,28 @@ Las mediciones oficiales corren desde el host con `scripts/run_a9_scenarios.py`,
 - **FinOps:** el costo por inferencia está dominado por la utilización. Al 70 % de capacidad con lote, una instancia de 2 vCPU cuesta entre 0.006 y 0.03 dólares por millón de inferencias. Con la demanda horaria real de MiBici (484 estaciones, 24 cortes al día) cuesta entre 43 y 176 dólares por millón si la instancia queda encendida todo el día. Ejecutar la carga programada por hora reduce ese costo a unos 1.70 dólares por millón.
 
 Detalle, gráficas y limitaciones: [Actividad 9 - Operación y FinOps](docs/evidencias/Actividad%209%20-%20Operacion%20y%20FinOps/README.md). Análisis reproducible con `.venv-a9/bin/python scripts/finops_analysis.py`.
+
+Los siguientes targets de GNU Make ejecutan los comandos del stack desde la raíz del repositorio.
+
+| Target | Comando |
+|---|---|
+| `make compose-up` | `docker compose up -d --build` |
+| `make compose-down` | `docker compose down` |
+| `make compose-ps` | `docker compose ps` |
+| `make compose-logs` | `docker compose logs` |
+| `make compose-validate` | `docker compose config --quiet` |
+| `make loadtest-smoke` | `docker compose --profile loadtest run --rm locust` |
+| `make finops-report` | `.venv-a9/bin/python scripts/finops_analysis.py` |
+
+Ejecutar `make compose-validate`, `make compose-up` y `make compose-ps`; cuando la API esté saludable, `make loadtest-smoke` comprueba peticiones desde la red del stack. Consultar la salida con `make compose-logs` y detener los servicios con `make compose-down`.
+
+Para `make finops-report`, preparar el entorno de Python 3.12 descrito en [Cómo reproducir](docs/evidencias/Actividad%209%20-%20Operacion%20y%20FinOps/README.md#cómo-reproducir). El target utiliza las mediciones versionadas en `reports/tables/a9_*` y regenera sus tablas y figuras. Se puede indicar otro intérprete con `make finops-report FINOPS_PYTHON=/ruta/al/python`.
+
+Las pruebas de contrato comprueban las recetas mediante `make -n` y verifican el nuevo job de CI.
+
+```bash
+.venv-a9/bin/python -m pytest -q tests/test_makefile_compose.py tests/test_ci_workflow.py
+```
 
 ## Monitoreo offline de drift P2 (Actividad 10)
 

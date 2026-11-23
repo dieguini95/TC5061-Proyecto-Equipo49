@@ -7,6 +7,7 @@ PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
 QUALITY_PYTHON = .venv-quality/bin/python
 SERVING_PYTHON ?= $(PYTHON_INTERPRETER)
+FINOPS_PYTHON ?= .venv-a9/bin/python
 MONITORING_ENV ?= .venv-monitoring
 ifeq ($(OS),Windows_NT)
 MONITORING_PYTHON ?= $(MONITORING_ENV)/Scripts/python.exe
@@ -121,6 +122,41 @@ serving-run:
 .PHONY: serving-test
 serving-test:
 	$(SERVING_PYTHON) -m pytest -q tests/api tests/test_serving_contract.py
+
+## Construye y levanta la API y MLflow con Docker Compose
+.PHONY: compose-up
+compose-up:
+	docker compose up -d --build
+
+## Detiene el stack de Compose y conserva el volumen de MLflow
+.PHONY: compose-down
+compose-down:
+	docker compose down
+
+## Muestra el estado de los servicios de Compose
+.PHONY: compose-ps
+compose-ps:
+	docker compose ps
+
+## Muestra los logs de los servicios de Compose
+.PHONY: compose-logs
+compose-logs:
+	docker compose logs
+
+## Valida la configuración de Compose sin imprimir las variables resueltas
+.PHONY: compose-validate
+compose-validate:
+	docker compose config --quiet
+
+## Ejecuta la carga de humo de Locust en la red del stack
+.PHONY: loadtest-smoke
+loadtest-smoke:
+	docker compose --profile loadtest run --rm locust
+
+## Regenera las tablas y figuras de FinOps con las mediciones existentes
+.PHONY: finops-report
+finops-report:
+	"$(FINOPS_PYTHON)" scripts/finops_analysis.py
 
 ## Crea el entorno aislado de Evidently e instala sus dependencias fijadas
 .PHONY: monitoring-env

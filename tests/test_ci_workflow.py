@@ -21,6 +21,17 @@ def test_workflow_triggers_and_permissions_are_minimal():
     assert workflow["concurrency"]["cancel-in-progress"] == "true"
 
 
+def test_compose_configuration_is_validated_in_an_independent_job():
+    job = _workflow()["jobs"]["compose-config"]
+
+    assert job["runs-on"] == "ubuntu-latest"
+    assert job["timeout-minutes"] == "5"
+    assert "needs" not in job
+    assert job["steps"][0]["uses"] == "actions/checkout@v4"
+    commands = [step["run"] for step in job["steps"] if "run" in step]
+    assert commands == ["docker compose config --quiet"]
+
+
 def test_jobs_run_required_quality_security_tests_and_image_smoke_gates():
     workflow = _workflow()
     jobs = workflow["jobs"]
