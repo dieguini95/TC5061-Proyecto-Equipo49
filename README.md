@@ -4,7 +4,16 @@ Proyecto de la materia **TC5061 · Construye | Proyecto MiBici**: propuesta y ba
 MLflow Project y tracking avanzado (Etapa 2).
 Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
-> **Estado (15 de noviembre de 2026, Actividad 10):** se evaluó el drift de P2 y se compararon dos versiones
+> **Estado (26 de noviembre de 2026, Entrega final):** proyecto consolidado de extremo a extremo con
+> API contenerizada (P2 y P3), Docker Compose, CI/CD en verde (`6` jobs en `CI Serving`), pruebas de carga
+> con Locust, análisis FinOps, monitoreo de drift con Evidently, A/B offline y **Model Card formal** en
+> [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md).
+>
+> **Estado previo (22 de noviembre de 2026, Actividad 9):** stack local en `docker-compose.yml` con API,
+> MLflow y perfil `loadtest` (Locust), targets de `Makefile`, validación de Compose en CI y análisis FinOps
+> reproducible. Ver [Integración continua del serving](#integración-continua-del-serving-actividad-9).
+>
+> **Estado previo (15 de noviembre de 2026, Actividad 10):** se evaluó el drift de P2 y se compararon dos versiones
 > con datos de octubre de 2026. El Registry identifica a v2 como `champion` y la API sirve el bundle v1.
 > Ver [Monitoreo offline de drift P2](#monitoreo-offline-de-drift-p2-actividad-10).
 >
@@ -28,7 +37,6 @@ Sistema de bicicletas públicas del Área Metropolitana de Guadalajara (MiBici).
 
 ## Equipo
 
-- Daniel Ruán Aguilar
 - Daniel Ruán Aguilar (`DaniRuan`) — P3: perfiles de uso por estación.
 - Saúl Salgado Ortega (`Drezneck-RM`) — P1: ingesta, variables, baseline y experimentación de demanda.
 - Diego Sánchez Hernández (`dieguini95`) — P2: riesgo de estación vacía o llena.
@@ -67,8 +75,8 @@ Decisiones y su justificación: ver el documento de la Etapa 1 (`references/`) y
 
 ```
 ├── data/           # raw, interim, processed, external (no versionados)
-├── docs/           # documentación adicional
-├── models/         # modelos serializados (no versionados)
+├── docs/           # Model Card (docs/MODEL_CARD.md) y evidencias por actividad
+├── models/         # modelos serializados (models/serving/{p2,p3} versionados para la imagen)
 ├── notebooks/      # EDA inicial y 1.0-sso-eda-p1.ipynb
 ├── references/     # ML Canvas, arquitectura, propuesta P1 y manifiesto
 ├── reports/        # figures/ y tables/ agregadas del EDA y P1
@@ -682,10 +690,11 @@ Evidencia P1 de la Etapa 1 (la búsqueda de Etapa 2 conserva su propia evidencia
 | 13 | Etapa 2: MLflow Project y Model Registry | Hecho: entry points `ingest`, `train`, `search_p1`, `search_p2` y `search_p3`; champion de P1, P2 y P3 registrados |
 | 14 | Actividad 7 (Etapa 3): pruebas PyTest, DeepChecks y chequeos de seguridad | Hecho: capturas de P1 incorporadas en el PR #14 (ver [Actividad 7](#actividad-7-pruebas-y-chequeos)) |
 | 15 | Actividad 8 (Etapa 4): API REST en contenedor Podman/Docker | Hecho: PR #15, #16 y #17 (ver [Actividad 8](#servicio-de-inferencia-en-contenedor-actividad-8)) |
-| 16 | Actividad 10: monitoreo de drift y A/B offline de P2 | Resultados de octubre y decisión de promoción en los PR #19 y #20 (ver [Actividad 10](#monitoreo-offline-de-drift-p2-actividad-10)) |
+| 16 | Actividad 10: monitoreo de drift y A/B offline de P2 | Hecho: resultados de octubre y decisión de promoción en los PR #19, #20 y #21 (ver [Actividad 10](#monitoreo-offline-de-drift-p2-actividad-10)) |
+| 17 | Actividad 9: CI/CD, Docker Compose, Locust y FinOps | Hecho: 6 jobs en `CI Serving`, stack Compose, pruebas S1–S5 y análisis FinOps en los PR #22, #23 y #24 (ver [Actividad 9](#integración-continua-del-serving-actividad-9)) |
+| 18 | Entrega final: Model Card y consolidación | Hecho: documentación de gobernanza en [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) y verificación integral del repositorio |
 
-Limitaciones abiertas: P3 aún no usa `dataset.py` ni registra `data_version`; la regla de 3 frente a 4 integrantes
-se confirma con el profesor; y el hash de `stations.parquet` difiere del manifiesto (ver P2).
+Limitaciones abiertas documentadas en [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md): P3 consume el resumen agregado `reports/tables/estaciones_resumen.csv` (con `data_version` SHA-256 registrado) en lugar de la ingesta horaria de `dataset.py`; el hash de `stations.parquet` difiere entre el manifiesto de entrenamiento y el de monitoreo aunque la paridad de métricas está verificada; y la re-exportación del bundle P2 a `v2` queda condicionada a confirmar noviembre de 2026.
 
 ## Actividad 7: pruebas y chequeos
 
